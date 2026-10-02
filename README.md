@@ -1,7 +1,8 @@
 # stringart
 
 OpenCV-based computational string art: photo → optimized pin sequence for a single thread.
-See [docs/PLAN.md](docs/PLAN.md) for the method and roadmap.
+The project report is [docs/report/report.md](docs/report/report.md); the roadmap is
+[docs/PLAN.md](docs/PLAN.md) and the per-milestone log is [docs/milestones/](docs/milestones/README.md).
 
 ## Setup
 
@@ -50,6 +51,7 @@ uv run python experiments/evaluate_dataset.py   # M6: full evaluation -> outputs
 uv run python experiments/figures_m6.py --docs  # M6: report figures
 uv run python experiments/evaluate_refine.py    # M4: refinement sweeps on all 30 images
 uv run python experiments/evaluate_color.py     # M5: colour vs LessWrong-style baseline
+uv run python experiments/figures_report.py     # report figures 1-2
 ```
 
 The milestone log with results and findings is in [docs/milestones/](docs/milestones/README.md).
