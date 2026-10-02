@@ -64,10 +64,14 @@ class PreprocessConfig:
     crop: str = "face"  # "face": centre on the largest detected face (fallback centre); "center"
     face_zoom: float = 1.8  # crop side = face height * zoom (tight portrait)
     face_shift: float = 0.15  # move crop centre down by this fraction of face height
-    # 1-99 percentile level stretch. "auto" only stretches photos whose range is poor
-    # (under/over-exposed); on well-exposed photos stretching measurably hurt (M3 ablation).
+    # 1-99 percentile level stretch. "auto" only stretches badly exposed photos: on
+    # well-exposed ones stretching measurably hurt (M3 ablation). Poor exposure = narrow range,
+    # or no black point (washed out), or no white point (underexposed). Thresholds are 0..255;
+    # every natural photo in the M6 set passes all three, every synthetic fault fails one.
     stretch: str = "auto"
-    stretch_below: float = 100.0  # "auto": stretch if p99 - p1 < this (0..255)
+    stretch_below: float = 115.0  # range p99 - p1 under this
+    black_point_above: float = 64.0  # p1 over this: no blacks
+    white_point_below: float = 128.0  # p99 under this: no whites
     smooth: str = "bilateral"  # "bilateral" (edge-preserving), "gaussian", "none"
     blur_sigma: float = 1.0  # gaussian sigma
     bilateral_sigma_color: float = 25.0
@@ -149,8 +153,9 @@ def prepare(img: np.ndarray, cfg: PreprocessConfig) -> Prepared:
     if cfg.stretch not in ("auto", "on", "off"):
         raise ValueError(f"unknown stretch {cfg.stretch!r}")
     lo, hi = np.percentile(gray[mask], (1, 99))
-    poor_range = hi - lo < cfg.stretch_below
-    if cfg.stretch == "on" or (cfg.stretch == "auto" and poor_range):
+    poor = (hi - lo < cfg.stretch_below or lo > cfg.black_point_above
+            or hi < cfg.white_point_below)
+    if cfg.stretch == "on" or (cfg.stretch == "auto" and poor):
         if hi - lo >= 8:  # leave (near-)flat images alone
             gray = np.clip((gray.astype(np.float64) - lo) * 255.0 / (hi - lo), 0, 255)
             gray = (gray + 0.5).astype(np.uint8)

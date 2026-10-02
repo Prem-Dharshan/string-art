@@ -91,7 +91,8 @@ def test_auto_stretch_only_for_poor_exposure():
     ramp = np.tile(np.linspace(0, 255, 100), (100, 1)).astype(np.uint8)
     full = np.dstack([ramp] * 3)  # full 0..255 range
     kw = {"size": 64, "crop": "center", "smooth": "none", "clahe_clip": 0}
-    for img, should_change in ((dark, True), (full, False)):
+    washed = np.dstack([np.tile(np.linspace(100, 250, 100), (100, 1)).astype(np.uint8)] * 3)
+    for img, should_change in ((dark, True), (full, False), (washed, True)):
         auto = prepare(img, PreprocessConfig(stretch="auto", **kw)).target
         off = prepare(img, PreprocessConfig(stretch="off", **kw)).target
         assert (not np.allclose(auto, off)) == should_change

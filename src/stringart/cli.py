@@ -7,6 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from . import viz
+from .fabrication import instructions, thread_length_mm
 from .geometry import make_pins
 from .importance import ImportanceConfig, auto_weights
 from .io import load_gray, load_sequence, save_gray, save_sequence
@@ -19,8 +20,8 @@ from .solver.greedy import GreedyConfig, opacity_from_physical, solve_greedy
 
 
 def _run(args) -> None:
-    if (args.thread_mm is None) != (args.frame_mm is None):
-        raise ValueError("--thread-mm and --frame-mm must be given together")
+    if args.thread_mm is not None and args.frame_mm is None:
+        raise ValueError("--thread-mm needs --frame-mm")
     if args.thread_mm is not None:
         args.opacity = round(opacity_from_physical(args.thread_mm, args.frame_mm, args.size), 4)
     if not args.legacy_prep and not model_path("yunet").is_file():
@@ -61,8 +62,13 @@ def _run(args) -> None:
     if weights is not None:
         save_gray(out / "importance.png", weights)
     (out / "render.svg").write_text(to_svg(res.sequence, pins, args.size, args.opacity))
+    (out / "instructions.txt").write_text(
+        instructions(res.sequence, pins, args.size, args.frame, args.frame_mm))
     meta = {"image": args.image, "solver": args.solver, "elapsed_s": round(res.elapsed_s, 3),
             "faces": len(prep.faces), "crop_xyside": list(prep.crop),
+            "thread_length_m": (round(thread_length_mm(res.sequence, pins, args.size,
+                                                       args.frame_mm) / 1000, 2)
+                                if args.frame_mm else None),
             "preprocess": asdict(pcfg), "solver_config": asdict(scfg), "metrics": metrics}
     save_sequence(out / "sequence.json", sequence=res.sequence, pins=pins, size=args.size,
                   frame=args.frame, opacity=args.opacity, meta=meta)
@@ -118,7 +124,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--opacity", type=float, default=0.2,
                    help="thread opacity per pixel (solver model and rendering)")
     r.add_argument("--thread-mm", type=float, help="thread width; with --frame-mm sets opacity")
-    r.add_argument("--frame-mm", type=float, help="frame diameter/side in mm")
+    r.add_argument("--frame-mm", type=float,
+                   help="frame diameter/side in mm (thread length in instructions.txt)")
     g = r.add_argument_group("greedy solver")
     g.add_argument("--objective", choices=["pixel", "blur"], default="pixel")
     g.add_argument("--blur-sigma", type=float, default=1.5, help="viewing blur for 'blur'")

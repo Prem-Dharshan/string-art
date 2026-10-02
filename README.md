@@ -35,6 +35,18 @@ Each run directory has `sequence.json` (pin coordinates and pin order, the fabri
 (PSNR/SSIM raw and blurred vs. the target and vs. the plain photo, face-region scores, timing,
 full config).
 
+## Dataset and experiments
+
+```sh
+uv run python experiments/fetch_dataset.py      # 30 openly licensed images -> data/raw/ (see data/ATTRIBUTION.md)
+uv run python experiments/compare_solvers.py    # M2: greedy vs baseline (sample images)
+uv run python experiments/ablation_m3.py        # M3: preprocessing / importance ablation
+uv run python experiments/evaluate_dataset.py   # M6: full evaluation -> outputs/experiments/m6/
+uv run python experiments/figures_m6.py --docs  # M6: report figures
+```
+
+The milestone log with results and findings is in [docs/milestones/](docs/milestones/README.md).
+
 ## Development
 
 ```sh
