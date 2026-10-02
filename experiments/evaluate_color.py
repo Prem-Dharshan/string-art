@@ -4,6 +4,7 @@ Methods (same auto palette of 4 threads unless noted, 256 pins, opacity 0.2, whi
   lw_baseline     LessWrong-style: Floyd-Steinberg dither into the palette, independent greedy
                   per colour on its dither mask, layered light -> dark
   joint           joint colour greedy (this work), Lab k-means palette, min_run 100
+  joint_fitpal    joint colour greedy, palette chosen by reachable gamut (fit_palette)
   joint_rgbpal    joint colour greedy with an RGB k-means palette (palette-space ablation)
   joint_run1      joint colour greedy without the spool-switch limit (min_run 1)
   black_only      the grayscale method rendered in black (what colour adds)
@@ -28,6 +29,7 @@ from stringart.color import (  # noqa: E402
     auto_palette,
     color_metrics,
     color_target,
+    fit_palette,
     palette_rgb,
     render_steps,
     solve_color,
@@ -52,7 +54,7 @@ COLOURFUL = [
     "a06_cat_tabby",
     "o01_lighthouse_striped",
 ]
-METHODS = ["lw_baseline", "joint", "joint_rgbpal", "joint_run1", "black_only"]
+METHODS = ["lw_baseline", "joint", "joint_fitpal", "joint_rgbpal", "joint_run1", "black_only"]
 
 
 def main() -> None:
@@ -70,10 +72,12 @@ def main() -> None:
         w, _ = auto_weights(prep)
         lab = auto_palette(target, prep.mask, args.colors, space="lab")
         rgb = auto_palette(target, prep.mask, args.colors, space="rgb")
+        fit = fit_palette(target, prep.mask, args.colors, weights=w)
         cfg = ColorConfig(n_colors=args.colors, opacity=OPACITY)
         runs = {
             "lw_baseline": (lab, solve_color_baseline(target, pins, palette_rgb(lab), cfg, lab)),
             "joint": (lab, solve_color(target, pins, palette_rgb(lab), cfg, w, lab)),
+            "joint_fitpal": (fit, solve_color(target, pins, palette_rgb(fit), cfg, w, fit)),
             "joint_rgbpal": (rgb, solve_color(target, pins, palette_rgb(rgb), cfg, w, rgb)),
             "joint_run1": (
                 lab,
@@ -108,7 +112,7 @@ def main() -> None:
                 }
             )
         print(
-            f"{iid}: " + "  ".join(f"{r['method']}={r['de2000_s2']}" for r in rows[-5:]), flush=True
+            f"{iid}: " + "  ".join(f"{r['method']}={r['de2000_s2']}" for r in rows[-6:]), flush=True
         )
 
     write_csv(out / "color.csv", rows)
@@ -142,6 +146,7 @@ def main() -> None:
     ]
     for a, b in (
         ("joint", "lw_baseline"),
+        ("joint_fitpal", "joint"),
         ("joint", "joint_rgbpal"),
         ("joint", "joint_run1"),
         ("joint", "black_only"),

@@ -120,3 +120,34 @@ def test_color_metrics_identical():
 def test_unknown_thread_rejected():
     with pytest.raises(ValueError):
         palette_rgb(["black", "unobtainium"])
+
+
+def test_reach_error_zero_inside_gamut_and_positive_outside():
+    from stringart.color import reach_error
+
+    pal = palette_rgb(["black", "red"])
+    red = np.array(THREADS["red"]) / 255
+    inside = np.array([[1, 1, 1], [0.5, 0.5, 0.5], 0.6 + 0.4 * red, red, 0.3 * red])
+    assert np.all(reach_error(inside, pal) < 1e-3)  # board, greys, red tints and shades
+    outside = np.array([[0.1, 0.2, 0.9]])  # blue cannot be mixed from white, black and red
+    assert reach_error(outside, pal)[0] > 0.2
+
+
+def test_fit_palette_picks_thread_for_saturated_region():
+    from stringart.color import fit_palette
+
+    img = np.ones((80, 80, 3))
+    img[20:60, 20:60] = np.array(THREADS["yellow"]) / 255
+    names = fit_palette(img, np.ones((80, 80), bool), 2)
+    assert names == ["black", "yellow"]
+
+
+def test_choose_palette_returns_a_candidate(pins):
+    from stringart.color import choose_palette
+
+    img = np.ones((120, 120, 3))
+    img[30:90, 30:90] = np.array(THREADS["blue"]) / 255
+    names, scores = choose_palette(img, np.ones((120, 120), bool), 2, len(pins), preview=120)
+    assert set(scores) == {"kmeans", "gamut"} and names[0] == "black" and len(names) == 2
+    with pytest.raises(ValueError):
+        choose_palette(img, np.ones((120, 120), bool), 2, len(pins), preview=120, by="nope")

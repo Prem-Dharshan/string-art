@@ -25,16 +25,18 @@ multiplicatively. A greedy search scores every candidate line by its exact drop 
 importance-weighted error and stops by itself. A path-refinement step (delete, reroute and
 insert pins) then improves the sequence without ever increasing the error and without breaking
 the single continuous thread. Candidate scoring runs in parallel. The same model extends to
-coloured threads: a joint greedy picks the best (colour, line) pair, with a palette from
-k-means in CIELAB.
+coloured threads: a joint greedy picks the best (colour, line) pair, with a palette of real
+threads chosen for the colours they can actually reach on the board.
 
 **Results.** On 30 openly licensed images (faces, hard cases, animals, objects), our solver
 beats the prior greedy method on 29 of 30 images at an equal line count, in about half the
 time. The full pipeline raises face-region SSIM on all 22 face images. Automatic exposure
-handling recovers synthetic under-, low-contrast and over-exposure faults. In colour, our joint
-solver beats the prior dither-based approach on all 12 colourful test images (CIEDE2000 −3.8,
-luminance SSIM +0.16). The system outputs a numbered winding list with thread lengths and a
-thread-by-thread visualization, and ships as a command-line tool and a local web demo.
+handling (level stretch + gamma) recovers synthetic under-, low-contrast and over-exposure
+faults, and its thresholds hold on a rule-chosen held-out set (no false alarms on 12 natural
+photos). In colour, our joint solver beats the prior dither-based approach on all 12 colourful
+test images (CIEDE2000 −5.0, luminance SSIM +0.15). The system outputs a numbered winding list
+with thread lengths and a thread-by-thread visualization, includes a photo-based calibration
+of the real thread, and ships as a command-line tool, a local web demo and a Docker image.
 
 ---
 
@@ -61,12 +63,14 @@ has well-known weaknesses:
 2. **Face-aware OpenCV preprocessing and automatic importance maps.** No manual masks and no
    per-image tuning. *Face-region SSIM rises on 22/22 face images.*
 3. **Path refinement.** Delete, reroute and insert moves keep one continuous thread and never
-   increase the error. *+0.010 SSIM σ2 (23/30) and +0.015 face SSIM (21/22).*
-4. **Joint colour solver** with per-colour threads and a practical spool-switching limit.
-   *CIEDE2000 −3.8 vs the prior colour method on 12/12 images.*
+   increase the error. *+0.011 SSIM σ2 (24/30) and +0.015 face SSIM (21/22).*
+4. **Joint colour solver** with per-colour threads, a practical spool-switching limit, and a
+   reachable-gamut thread palette. *CIEDE2000 −5.0 vs the prior colour method on 12/12
+   images.*
 5. **A buildable output and an evaluation protocol.** A winding list with thread lengths for
-   the team's 700 mm, 300-pin frame, a visualizer, a web demo, a 30-image openly licensed
-   benchmark, and a protocol that compares methods on identical framing.
+   the team's 700 mm, 300-pin frame, a photo-based thread calibration, a visualizer, a web
+   demo, a 30-image openly licensed benchmark plus a rule-chosen held-out set, and a protocol
+   that compares methods on identical framing.
 
 ## 2. Related work
 - **Vrellis-style greedy and "Computational Thread Art" (LessWrong).** Lines are chosen
@@ -97,7 +101,8 @@ preprocessed target; (3) automatic importance map; (4) black-thread result, 3,23
 2. **Automatic exposure.** A 1–99 percentile level stretch is applied only when the photo is
    badly exposed: narrow range (p99 − p1 < 115/255), no black point (p1 > 64) or no white
    point (p99 < 128). Stretching well-exposed photos hurt fidelity (M3), so it is not applied
-   unconditionally.
+   unconditionally. After the stretch, a gamma (clamped to 0.5–2.0) moves the median toward
+   mid-grey, which undoes the gamma shift of washed-out photos.
 3. **Edge-preserving smoothing** (`cv2.bilateralFilter`) and **CLAHE** (local contrast).
 4. *(Optional)* **GrabCut background fade**, seeded from the face. This is an aesthetic
    option and off by default (§7).
@@ -161,8 +166,12 @@ increases. Two sweeps are the default.
 ### 3.6 Colour
 - **Thread model.** A thread of colour *c* composites over the pixel beneath it,
   `C ← C(1 − a) + c·a`. With black thread on a white board this is exactly §3.3.
-- **Palette.** k-means (`cv2.kmeans`) in CIELAB, with each centre snapped to the nearest real
-  thread colour. Black is always included.
+- **Palette.** Threads over the white board can reach (to first order) only the convex hull
+  of the board and the thread colours. Starting from black, the palette greedily adds the real
+  thread (from a 16-colour list) that most reduces the image colours' distance to that hull.
+  The distance is solved per pixel by accelerated projected gradient. Snapping k-means centres
+  to the nearest thread, the earlier approach, kept neutral tones and missed saturated ones
+  (a yellow shirt became tan).
 - **Solver.** Each colour is a separate physical thread with its own current pin. Each step
   takes the (colour, line) pair with the largest drop in weighted RGB error. A colour is kept
   for at least 100 lines, so the builder switches spools a few dozen times rather than
@@ -177,6 +186,21 @@ increases. Two sweeps are the default.
   player has pause, step and speed controls; it can export mp4 and GIF, and save snapshot
   grids (Figure 2). A test asserts that its final frame equals the final render pixel for
   pixel.
+
+### 3.8 Calibration to the real thread
+The simulation's one physical parameter is the thread's effective opacity per pixel. Real
+thread isn't perfectly black, so this is measured rather than guessed.
+
+1. `stringart calibrate sheet` writes a ~250-line pattern with dark, mid and light regions.
+2. The user winds it and photographs it.
+3. `stringart calibrate fit photo.jpg`:
+   - finds the frame (Hough circle) and warps it onto the canvas
+   - normalizes by the median brightness of board areas the pattern never touches
+   - fits the opacity whose simulated render best matches the photo after viewing blur
+   - prints the `--thread-mm` to use
+
+On synthetic photos (shifted, scaled, noisy) it recovers the opacity within ±0.001 when the
+frame position is given and ±0.021 when it is detected.
 
 ![Build-up](figures/buildup.png)
 *Figure 2. The portrait forming thread by thread (full method, 300 pins). The SSIM shown is
@@ -210,6 +234,13 @@ at viewing blur σ = 2.*
 By category: 17 faces (age, gender, skin tone, glasses, beards, black-and-white, dark
 backgrounds, small faces), 4 hard cases (including a face mostly covered by a veil),
 7 animals, 2 objects.
+
+**Held-out set.** 12 natural images (8 faces, 4 animals) plus 6 synthetic faults at strengths
+different from the main set's. They were chosen **by a fixed rule, never by looking**: in each
+Commons category, skip the first 60 members (the pool browsed when curating the main set) and
+take the next openly licensed images in API order that pass the automatic face filter. It is
+used only to check decisions made on the main set: the exposure thresholds and the colour
+palette.
 
 **Methods compared** (black thread):
 
@@ -254,9 +285,9 @@ clearly (+0.027 and +0.120).
 *Figure 3. SSIM σ2 vs. number of lines; the dashed line marks our automatic stop.*
 
 ### 6.2 Preprocessing and importance
-Full method D vs solver-only C, paired: face-region SSIM **+0.057, 22/22**. Whole-frame SSIM
-is −0.010, a deliberate trade, since importance moves threads from background to face. Against
-the published prior method A, D gains **+0.048 face SSIM on 20/22** images and +0.018 overall.
+Full method D vs solver-only C, paired: face-region SSIM **+0.060, 22/22**. Whole-frame SSIM
+is −0.007, a deliberate trade, since importance moves threads from background to face. Against
+the published prior method A, D gains **+0.051 face SSIM on 21/22** images and +0.021 overall.
 On face-less images the importance terms did not help, which is why they switch on only when
 a face is detected.
 
@@ -267,22 +298,29 @@ a face is detected.
 *Figure 5. Photo, prior method (A) and full method (D) on the same crop.*
 
 ### 6.3 Robustness to exposure
-| input (scored vs clean photo) | auto exposure | without |
-|---|---|---|
-| clean original | 0.639 | |
-| underexposed | **0.661** | 0.614 |
-| low contrast | **0.623** | 0.551 |
-| washed out | **0.548** | 0.511 |
+| faults, scored against the clean photo | none | level stretch | **stretch + gamma (default)** | clean input |
+|---|---|---|---|---|
+| main set: underexposed | 0.614 | 0.661 | 0.635 | 0.639 |
+| main set: low contrast | 0.551 | 0.623 | 0.635 | 0.639 |
+| main set: washed out | 0.511 | 0.548 | **0.645** | 0.639 |
+| main set, mean of 3 | 0.559 | 0.611 | **0.638** | 0.639 |
+| held-out, mean of 6 | 0.591 | 0.640 | **0.650** | 0.657 |
 
-The washed-out case recovers only partially. Its fault is a gamma shift, which a level stretch
-can't fully undo (§7).
+The trigger flags 0/27 natural photos and 3/3 faults on the main set, and **0/12 natural photos
+and 5/6 faults on the held-out set**. The one miss is the mildest underexposure, which scores
+above its own clean original without correction. Gamma fixes washed-out photos (0.548 → 0.645)
+but slightly lowers underexposed ones; it wins on average on both sets, and was not re-tuned
+after seeing the held-out results.
 
 ### 6.4 Refinement
 | | SSIM σ2 | face SSIM σ2 | lines | time |
 |---|---|---|---|---|
-| greedy | 0.634 | 0.686 | 2,778 | 0.9 s |
-| + 2 sweeps (default) | 0.644 | 0.701 | 3,227 | 7.8 s |
-| + 3 sweeps | 0.645 | 0.705 | 3,254 | 11.7 s |
+| greedy | 0.637 | 0.689 | 2,786 | 1.5 s |
+| + 2 sweeps (default) | 0.647 | 0.704 | 3,237 | 10.2 s |
+| + 3 sweeps | 0.649 | 0.707 | 3,262 | 14.9 s |
+
+Timings are from the Docker container (8 numba threads); on the 16-thread host, greedy takes
+about 0.9 s and the default pipeline about 8 s.
 
 The largest gains come where greedy stopped early on detailed images (athlete +0.067, elderly
 man +0.074): insert moves place additional lines anywhere along the path.
@@ -304,20 +342,24 @@ man +0.074): insert moves place additional lines anywhere along the path.
 | method (12 colourful images) | ΔE2000 σ2 ↓ | luminance SSIM σ2 ↑ | spool switches |
 |---|---|---|---|
 | prior colour method (dither + independent greedy) | 16.36 | 0.503 | 3 |
-| **joint colour greedy (ours)** | **12.59** | **0.662** | 39 |
-| ours without spool limit | 12.67 | 0.656 | 144 |
+| **ours: joint greedy, reachable-gamut palette (default)** | **11.34** | 0.649 | 33 |
+| ours with k-means palette | 12.56 | **0.663** | 39 |
+| ours, k-means palette, no spool limit | 12.64 | 0.657 | 144 |
 | black thread only | 16.00 | 0.602 | 0 |
 
-Ours wins on **12/12** images in both metrics. The 100-line spool limit costs nothing (4×
-fewer switches, half the time). Lab vs RGB clustering for the palette was inconclusive (5 vs
-4 wins where the palettes differ).
+- **Against the prior colour method,** ours wins on **12/12** images in both metrics
+  (ΔE −5.0, luminance SSIM +0.15).
+- **The reachable-gamut palette** lowers ΔE by 1.2 against k-means centres (8/12 images) at a
+  small cost in light/dark structure. The held-out set confirms this (ΔE 11.14 vs 12.59,
+  11/12 images), and the boy's yellow shirt now gets a yellow thread.
+- **The 100-line spool limit** costs nothing (4× fewer switches, half the time).
 
 ![Colour](figures/m5_color_gallery.png)
-*Figure 7. Colour results: preprocessed photo, prior colour method, ours (four threads each).*
+*Figure 7. Colour results: preprocessed photo, prior colour method, ours with the gamut palette (four threads each).*
 
 ### 6.7 Runtime
 - On a 16-thread laptop CPU at 600 px with 256–300 pins: greedy about 1 s, the default
-  pipeline (greedy + 2 refinement sweeps) about 8 s, four-colour about 9 s.
+  pipeline (greedy + 2 refinement sweeps) about 8 s, four-colour about 9–11 s.
 - The demo (including animation rendering) returns in about 10–20 s.
 - The heaviest step is refinement, which is optional (`--refine 0` gives a 1 s preview).
 
@@ -325,17 +367,18 @@ fewer switches, half the time). Lab vs RGB clustering for the palette was inconc
 - **MSE vs perception.** The automatic stop and the refinement minimize weighted squared
   error, not SSIM. On very detailed images the stop comes early (refinement compensates), and
   in a few cases refinement lowers SSIM slightly while lowering the error.
-- **Thresholds chosen on this set.** The auto-exposure thresholds were set by looking at the
-  evaluation set: they fire on all three synthetic faults and on none of the 27 natural
-  photos. A held-out set would make this claim stronger. The washed-out case needs a gamma
-  correction.
+- **Exposure thresholds.** They were set on the main set, then confirmed on a rule-chosen
+  held-out set: no false alarms on 12 photos, 5/6 faults caught. Gamma correction recovers
+  washed-out photos fully on the main set, but only partly on the held-out set (0.62 vs 0.67
+  clean), and it costs a little on underexposed ones.
 - **Small categories.** Only 2 objects and 4 hard cases: conclusions there are weak.
 - **Background fade** (GrabCut) is aesthetic and lowers fidelity; it is off by default.
-- **Palette.** Snapping k-means centres to a fixed thread list can miss a needed colour (a
-  yellow shirt became tan). Selecting threads by their effect on the final error would be
-  better.
-- **No physical validation yet.** All results are simulated. Real thread opacity and
-  layering should be calibrated on a small test build (photograph it, fit `opacity`).
+- **Palette trade-off.** The reachable-gamut palette gets colour right but gives up a little
+  light/dark structure (luminance SSIM −0.014 to −0.026). A quick low-resolution preview turned
+  out to be a poor judge of which palette wins (6/12).
+- **No physical validation yet.** All results are simulated. The calibration tool is
+  validated on synthetic photos only; one real test build on the team's frame is still
+  needed.
 
 ## 8. Conclusion and future work
 A physically grounded objective, OpenCV face-aware preprocessing and automatic importance
@@ -345,11 +388,11 @@ greedy, about 8 s with refinement), and **feasible** (one continuous thread per 
 practical number of spool switches, and a numbered build sheet with thread lengths).
 
 Next steps:
-1. A physical build on the 700 mm, 300-pin frame, to calibrate thread opacity.
+1. Wind the calibration pattern on the 700 mm, 300-pin frame and fit the real thread opacity.
 2. A perceptual (blur- or SSIM-aware) stopping rule.
-3. Gamma-aware exposure correction.
-4. Thread-palette selection driven by the objective.
-5. Refinement for colour.
+3. A palette that balances colour accuracy and structure, e.g. scored by a full-resolution
+   solve.
+4. Refinement for colour.
 
 ## References
 1. P. Vrellis, "A New Way to Knit" (2016), the origin of greedy computational string art.
@@ -382,10 +425,15 @@ uv run python experiments/fetch_dataset.py      # 30 images + attribution
 uv run python experiments/evaluate_dataset.py   # §6.1–6.3, 6.5
 uv run python experiments/evaluate_refine.py    # §6.4
 uv run python experiments/evaluate_color.py     # §6.6
+uv run python experiments/build_heldout.py      # held-out spec (then fetch_dataset.py --spec data/heldout.json ...)
+uv run python experiments/evaluate_exposure.py  # §6.3, held-out exposure check
+uv run python experiments/evaluate_palette_heldout.py
 uv run python experiments/figures_m6.py --docs && uv run python experiments/figures_m5.py --docs
 uv run python experiments/figures_report.py     # Figures 1–2
-uv run pytest                                   # 70 tests
+uv run pytest                                   # 79 tests
 uv run --extra demo stringart demo              # the demo
 ```
+The report's numbers were produced in the Docker image (`docker compose run -d --name sa-exp
+stringart bash experiments/run_all.sh`); see the README.
 Image credits: see `data/ATTRIBUTION.md`. Figures that contain photographs are derivative
 works shared under the photos' licences (CC BY / CC BY-SA / CC0 / public domain).

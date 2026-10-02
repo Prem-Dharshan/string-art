@@ -17,3 +17,4 @@ outputs/
 cache/
 *.npz
 .cache/
+data/raw_heldout/

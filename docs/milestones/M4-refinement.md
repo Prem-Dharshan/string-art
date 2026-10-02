@@ -72,6 +72,11 @@ passes one after another. Scoring is the same as M6.
   old greedy-only time.
 - **Default:** `--refine 2` in the CLI (`--refine 0` turns it off for a 1 s preview).
 
+> **Re-run in M8 (Docker, with gamma-aware exposure):** greedy 0.637 / face 0.689;
+> +2 sweeps 0.647 / 0.704 (+0.011 on 24/30, face +0.015 on 21/22); +3 sweeps 0.649 / 0.707
+> (+0.012 on 26/30, face +0.019 on 22/22). Container timings (8 numba threads): greedy 1.5 s,
+> +2 sweeps 10.2 s.
+
 ## Tests
 5 new tests:
 - E never increases, and refinement's tracked E matches a fresh render (rel 1e-6)

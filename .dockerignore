@@ -1,0 +1,11 @@
+.git
+.venv
+.cache
+.ruff_cache
+.pytest_cache
+**/__pycache__
+outputs
+data/raw
+data/raw_heldout
+models/*.onnx
+models/*.yaml

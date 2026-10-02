@@ -12,8 +12,8 @@ import numpy as np
 from stringart import viz
 from stringart.color import (
     ColorConfig,
-    auto_palette,
     color_target,
+    fit_palette,
     palette_rgb,
     render_steps,
     solve_color,
@@ -75,7 +75,7 @@ def main():
     )
     gray = render_sequence(seq, pins, prep.target.shape, op).image()
     ct = color_target(prep)
-    names = auto_palette(ct, prep.mask, 4)
+    names = fit_palette(ct, prep.mask, 4, weights=w)
     cres = solve_color(
         ct, pins, palette_rgb(names), ColorConfig(opacity=op, min_gap=gap), weights=w, names=names
     )

@@ -16,9 +16,9 @@ import numpy as np
 from . import viz
 from .color import (
     ColorConfig,
-    auto_palette,
     color_metrics,
     color_target,
+    fit_palette,
     palette_rgb,
     render_steps,
     solve_color,
@@ -103,9 +103,9 @@ def make_art(
         )
         n_lines, palette_txt = len(seq) - 1, "black"
     else:
-        say(0.2, desc="choosing thread colours (Lab k-means)")
+        say(0.2, desc="choosing thread colours (reachable gamut)")
         target_img = color_target(prep)
-        names = auto_palette(target_img, prep.mask, int(n_colors))
+        names = fit_palette(target_img, prep.mask, int(n_colors), weights=weights)
         colors = palette_rgb(names)
         say(0.3, desc="solving (joint colour greedy)")
         res = solve_color(
@@ -246,9 +246,9 @@ def build_ui():
     return ui
 
 
-def launch(port: int = 7860, share: bool = False) -> None:
+def launch(port: int = 7860, host: str = "127.0.0.1", share: bool = False) -> None:
     try:
         import gradio  # noqa: F401
     except ImportError as e:
         raise SystemExit("the demo needs gradio: run `uv run --extra demo stringart demo`") from e
-    build_ui().launch(server_name="127.0.0.1", server_port=port, share=share)
+    build_ui().launch(server_name=host, server_port=port, share=share)

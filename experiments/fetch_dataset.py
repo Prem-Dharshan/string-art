@@ -71,17 +71,18 @@ def image_info(title: str, width: int) -> dict:
     }
 
 
-# Synthetic exposure degradations, applied in 8-bit RGB.
-def underexpose(img):
-    return np.clip(255.0 * (img / 255.0) ** 2.2 * 0.55, 0, 255).astype(np.uint8)
+# Synthetic exposure degradations, applied in 8-bit RGB. Defaults = the M6 set; a spec item
+# may override them with "params" (the held-out set uses different strengths).
+def underexpose(img, gamma=2.2, gain=0.55):
+    return np.clip(255.0 * (img / 255.0) ** gamma * gain, 0, 255).astype(np.uint8)
 
 
-def low_contrast(img):
-    return np.clip(95 + img * (65 / 255.0), 0, 255).astype(np.uint8)
+def low_contrast(img, lo=95, span=65):
+    return np.clip(lo + img * (span / 255.0), 0, 255).astype(np.uint8)
 
 
-def washed_out(img):
-    return np.clip(255.0 * (img / 255.0) ** 0.4 * 0.9 + 25, 0, 255).astype(np.uint8)
+def washed_out(img, gamma=0.4, gain=0.9, lift=25):
+    return np.clip(255.0 * (img / 255.0) ** gamma * gain + lift, 0, 255).astype(np.uint8)
 
 
 TRANSFORMS = {"underexpose": underexpose, "low_contrast": low_contrast, "washed_out": washed_out}
@@ -97,10 +98,14 @@ def _write(path: Path, img) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true", help="re-download existing files")
+    ap.add_argument("--spec", default=str(SPEC), help="dataset spec (default data/dataset.json)")
+    ap.add_argument("--raw", default=str(RAW), help="download folder (default data/raw)")
+    ap.add_argument("--attribution", default=str(ROOT / "data" / "ATTRIBUTION.md"))
     args = ap.parse_args()
-    spec = json.loads(SPEC.read_text(encoding="utf-8"))
-    RAW.mkdir(parents=True, exist_ok=True)
-    manifest_path = RAW / "manifest.json"
+    spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
+    raw = Path(args.raw)
+    raw.mkdir(parents=True, exist_ok=True)
+    manifest_path = raw / "manifest.json"
     manifest = (
         json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
     )
@@ -108,7 +113,7 @@ def main() -> None:
     for item in spec["images"]:
         if "title" not in item:
             continue
-        dest = RAW / f"{item['id']}.jpg"
+        dest = raw / f"{item['id']}.jpg"
         if dest.is_file() and item["id"] in manifest and not args.force:
             continue
         info = image_info(item["title"], spec["width"])
@@ -126,9 +131,10 @@ def main() -> None:
         if "derived_from" not in item:
             continue
         src = cv2.imdecode(
-            np.fromfile(RAW / f"{item['derived_from']}.jpg", np.uint8), cv2.IMREAD_COLOR
+            np.fromfile(raw / f"{item['derived_from']}.jpg", np.uint8), cv2.IMREAD_COLOR
         )
-        _write(RAW / f"{item['id']}.jpg", TRANSFORMS[item["transform"]](src.astype(np.float64)))
+        fn = TRANSFORMS[item["transform"]]
+        _write(raw / f"{item['id']}.jpg", fn(src.astype(np.float64), **item.get("params", {})))
         base = manifest[item["derived_from"]]
         manifest[item["id"]] = {
             **item,
@@ -143,8 +149,11 @@ def main() -> None:
     lines = [
         "# Image attribution",
         "",
-        "Evaluation images from Wikimedia Commons. `h02`–`h04` are synthetic exposure "
-        "variants of `f07` made by `experiments/fetch_dataset.py`.",
+        spec.get(
+            "attribution_note",
+            "Evaluation images from Wikimedia Commons. `h02`–`h04` are synthetic exposure "
+            "variants of `f07` made by `experiments/fetch_dataset.py`.",
+        ),
         "",
         "| id | author | licence | source |",
         "|---|---|---|---|",
@@ -155,8 +164,8 @@ def main() -> None:
         lines.append(
             f"| {item['id']} | {m['artist'].replace('|', '/')} | {lic} | [Commons]({m['page']}) |"
         )
-    (ROOT / "data" / "ATTRIBUTION.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"{len(spec['images'])} images ready in {RAW}")
+    Path(args.attribution).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"{len(spec['images'])} images ready in {raw}")
 
 
 if __name__ == "__main__":

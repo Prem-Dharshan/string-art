@@ -69,6 +69,11 @@ class PreprocessConfig:
     # or no black point (washed out), or no white point (underexposed). Thresholds are 0..255;
     # every natural photo in the M6 set passes all three, every synthetic fault fails one.
     stretch: str = "auto"
+    # With the stretch, "auto" also applies a gamma that moves the median toward
+    # `gamma_median` (clamped to `gamma_range`); "off" = level stretch only.
+    gamma: str = "auto"
+    gamma_median: float = 0.5
+    gamma_range: tuple[float, float] = (0.5, 2.0)
     stretch_below: float = 115.0  # range p99 - p1 under this
     black_point_above: float = 64.0  # p1 over this: no blacks
     white_point_below: float = 128.0  # p99 under this: no whites
@@ -154,10 +159,19 @@ def prepare(img: np.ndarray, cfg: PreprocessConfig) -> Prepared:
         raise ValueError(f"unknown stretch {cfg.stretch!r}")
     lo, hi = np.percentile(gray[mask], (1, 99))
     poor = hi - lo < cfg.stretch_below or lo > cfg.black_point_above or hi < cfg.white_point_below
-    if cfg.stretch == "on" or (cfg.stretch == "auto" and poor):
-        if hi - lo >= 8:  # leave (near-)flat images alone
-            gray = np.clip((gray.astype(np.float64) - lo) * 255.0 / (hi - lo), 0, 255)
-            gray = (gray + 0.5).astype(np.uint8)
+    if cfg.gamma not in ("auto", "off"):
+        raise ValueError(f"unknown gamma {cfg.gamma!r}")
+    fix = cfg.stretch == "on" or (cfg.stretch == "auto" and poor)
+    if fix and hi - lo >= 8:  # leave (near-)flat images alone
+        g = np.clip((gray.astype(np.float64) - lo) / (hi - lo), 0, 1)
+        if cfg.gamma == "auto":
+            # A level stretch fixes range, not a gamma shift (washed-out photos): move the
+            # median toward mid-grey with a clamped gamma.
+            med = float(np.median(g[mask]))
+            if 0.02 < med < 0.98:
+                gam = np.clip(np.log(cfg.gamma_median) / np.log(med), *cfg.gamma_range)
+                g = g**gam
+        gray = (g * 255.0 + 0.5).astype(np.uint8)
     if cfg.smooth == "bilateral":
         gray = cv2.bilateralFilter(gray, 0, cfg.bilateral_sigma_color, max(1.0, cfg.size / 300))
     if cfg.clahe_clip > 0:

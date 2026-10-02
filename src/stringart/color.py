@@ -129,6 +129,128 @@ def auto_palette(
     return chosen[:n_colors]
 
 
+def _project_capped_simplex(a: np.ndarray) -> np.ndarray:
+    """Row-wise Euclidean projection onto {a >= 0, sum(a) <= 1}."""
+    a = np.maximum(a, 0.0)
+    over = a.sum(axis=1) > 1.0
+    if over.any():
+        v = a[over]
+        u = -np.sort(-v, axis=1)
+        css = np.cumsum(u, axis=1) - 1.0
+        k = np.arange(1, v.shape[1] + 1)
+        rho = (u - css / k > 0).sum(axis=1)
+        theta = css[np.arange(len(v)), rho - 1] / rho
+        a[over] = np.maximum(v - theta[:, None], 0.0)
+    return a
+
+
+def reach_error(
+    px: np.ndarray, colors: np.ndarray, background=(1.0, 1.0, 1.0), iters: int = 300
+) -> np.ndarray:
+    """Per-pixel RGB distance from each target colour to the colours a palette can reach.
+
+    Threads composited over the board give C = B + sum_i a_i (c_i - B) with a_i >= 0 and
+    sum a_i <= 1 (to first order in coverage), i.e. the convex hull of the board and the thread
+    colours. Solved by accelerated projected gradient (FISTA) on the capped simplex, all pixels
+    at once.
+    """
+    b = np.asarray(background, dtype=np.float64)
+    D = np.asarray(colors, dtype=np.float64) - b  # (K, 3)
+    r = px - b  # (N, 3)
+    a = np.zeros((len(px), len(D)))
+    y, t = a.copy(), 1.0
+    step = 1.0 / max(np.linalg.eigvalsh(D @ D.T).max(), 1e-9)
+    for _ in range(iters):
+        a_next = _project_capped_simplex(y - step * ((y @ D - r) @ D.T))
+        t_next = (1.0 + np.sqrt(1.0 + 4.0 * t * t)) / 2.0
+        y = a_next + ((t - 1.0) / t_next) * (a_next - a)
+        a, t = a_next, t_next
+    return np.linalg.norm(a @ D - r, axis=1)
+
+
+def fit_palette(
+    target_rgb: np.ndarray,
+    mask: np.ndarray,
+    n_colors: int,
+    weights=None,
+    samples: int = 6000,
+    seed: int = 0,
+) -> list[str]:
+    """Choose threads by what they let the art reach: start from black, then greedily add the
+    thread that most lowers the (importance-weighted) mean distance from the image's colours
+    to the palette's reachable gamut. Unlike snapping k-means centres to the nearest thread,
+    a saturated region (a yellow shirt) pulls in the thread that can reproduce it."""
+    rng = np.random.default_rng(seed)
+    idx = np.flatnonzero(mask.ravel())
+    idx = rng.choice(idx, min(samples, len(idx)), replace=False)
+    px = target_rgb.reshape(-1, 3)[idx]
+    w = np.ones(len(idx)) if weights is None else np.asarray(weights).ravel()[idx]
+    names = [n for n in THREADS if n not in ("white", "black")]
+    chosen = ["black"]
+    while len(chosen) < n_colors:
+        scores = {
+            n: float(np.average(reach_error(px, palette_rgb([*chosen, n])), weights=w))
+            for n in names
+            if n not in chosen
+        }
+        chosen.append(min(scores, key=scores.get))
+    return chosen
+
+
+def choose_palette(
+    target_rgb: np.ndarray,
+    mask: np.ndarray,
+    n_colors: int,
+    n_pins: int,
+    weights=None,
+    opacity: float = 0.2,
+    preview: int = 240,
+    by: str = "de2000",
+) -> tuple[list, dict]:
+    """Pick the palette from a quick preview: candidates = the k-means palette and the
+    gamut-fit palette; each gets a joint solve on a `preview`-px copy, and the one whose
+    preview is closer to the photo wins. `by="de2000"` (default) compares mean CIEDE2000 after
+    viewing blur; `by="rgb"` compares the solver's own weighted RGB error, which favours
+    neutral palettes. Returns (names, {candidate: score})."""
+    from .geometry import make_pins
+
+    cands = {
+        "kmeans": auto_palette(target_rgb, mask, n_colors),
+        "gamut": fit_palette(target_rgb, mask, n_colors, weights=weights),
+    }
+    small = cv2.resize(target_rgb, (preview, preview), interpolation=cv2.INTER_AREA)
+    w = None
+    if weights is not None:
+        w = cv2.resize(
+            np.asarray(weights, np.float64), (preview, preview), interpolation=cv2.INTER_AREA
+        )
+    pins = make_pins("circle", n_pins, preview)
+    # Same thread on a smaller canvas covers more of each (bigger) pixel.
+    op = min(0.95, opacity * 600 / preview)
+    gap = max(2, round(10 * n_pins / 256))
+    errs = {}
+    for key, names in cands.items():
+        if key == "gamut" and names == cands["kmeans"]:
+            errs[key] = errs["kmeans"]
+            continue
+        colors = palette_rgb(names)
+        res = solve_color(
+            small, pins, colors, ColorConfig(opacity=op, min_gap=gap, min_run=40), weights=w
+        )
+        img = render_steps(res.steps, pins, (preview, preview), colors, op).image()
+        if by == "rgb":
+            ww = np.ones((preview, preview)) if w is None else w
+            errs[key] = float(np.sum(ww[..., None] * (small - img) ** 2))
+        elif by == "de2000":
+            pmask = cv2.resize(mask.astype(np.uint8), (preview, preview)).astype(bool)
+            sig = 2 * preview / 600  # the same viewing blur as at full size
+            errs[key] = color_metrics(small, img, pmask, sigmas=(sig,))[f"de2000_s{sig}"]
+        else:
+            raise ValueError(f"unknown palette criterion {by!r}")
+    best = min(errs, key=errs.get)
+    return cands[best], errs
+
+
 def palette_rgb(names: list[str]) -> np.ndarray:
     unknown = [n for n in names if n not in THREADS]
     if unknown:

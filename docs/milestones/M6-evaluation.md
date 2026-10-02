@@ -141,6 +141,13 @@ figure is a derivative work shared under the same licences.*
 8. **Known outlier:** baseline A on the washed-out h04 scores well (0.614) by accident. Its
    fixed 3,000 lines over-darken, which happens to offset the washed-out exposure.
 
+> **Re-run in M8 (Docker, with gamma-aware exposure):** only the three synthetic faults
+> change. Full method on hard cases: SSIM σ2 0.618 → **0.639**, face SSIM 0.678 → 0.692.
+> Paired: D − A +0.021 (15/30), face **+0.051 (21/22)**; D − C −0.007 (9/30), face
+> **+0.060 (22/22)**. Robustness with stretch + gamma, vs the clean photo (0.639): underexposed
+> 0.636, low contrast 0.635, washed out **0.645** (was 0.548). The thresholds were then checked
+> on a rule-chosen held-out set (M8).
+
 ## Fabrication output
 `stringart run … --frame-mm 500` now also writes `instructions.txt`, a numbered winding list
 in 100-line blocks with running thread length, and records `thread_length_m` in

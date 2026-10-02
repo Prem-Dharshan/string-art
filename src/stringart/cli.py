@@ -152,8 +152,10 @@ def _run_color(args, prep, pcfg, weights, parts, pins) -> None:
     from .color import (
         ColorConfig,
         auto_palette,
+        choose_palette,
         color_metrics,
         color_target,
+        fit_palette,
         palette_rgb,
         render_steps,
         solve_color,
@@ -161,11 +163,16 @@ def _run_color(args, prep, pcfg, weights, parts, pins) -> None:
     )
 
     target = color_target(prep, clahe_clip=args.clahe)
-    names = (
-        [n.strip() for n in args.palette.split(",")]
-        if args.palette
-        else auto_palette(target, prep.mask, args.colors)
-    )
+    if args.palette:
+        names = [n.strip() for n in args.palette.split(",")]
+    elif args.palette_method == "kmeans":
+        names = auto_palette(target, prep.mask, args.colors)
+    elif args.palette_method == "gamut":
+        names = fit_palette(target, prep.mask, args.colors, weights=weights)
+    else:
+        names, _ = choose_palette(
+            target, prep.mask, args.colors, args.pins, weights=weights, opacity=args.opacity
+        )
     colors = palette_rgb(names)
     ccfg = ColorConfig(
         n_colors=len(names),
@@ -319,6 +326,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     c.add_argument("--palette", help="explicit thread colours, e.g. black,red,tan,blue")
     c.add_argument(
+        "--palette-method",
+        choices=["gamut", "kmeans", "auto"],
+        default="gamut",
+        help="gamut: threads that can reach the photo's colours (best colour accuracy); "
+        "kmeans: snapped colour clusters (slightly more light/dark structure); "
+        "auto: quick preview of both (weak predictor)",
+    )
+    c.add_argument(
         "--min-run", type=int, default=100, help="colour mode: lines before switching spool"
     )
     b = r.add_argument_group("baseline solver")
@@ -375,12 +390,68 @@ def build_parser() -> argparse.ArgumentParser:
 
     d = sub.add_parser("demo", help="launch the interactive web demo (needs --extra demo)")
     d.add_argument("--port", type=int, default=7860)
-    d.set_defaults(func=lambda a: __import__("stringart.demo", fromlist=["launch"]).launch(a.port))
+    d.add_argument("--host", default="127.0.0.1", help="0.0.0.0 inside a container")
+    d.set_defaults(
+        func=lambda a: __import__("stringart.demo", fromlist=["launch"]).launch(a.port, a.host)
+    )
+
+    cal = sub.add_parser("calibrate", help="measure the real thread's opacity from a photo")
+    calsub = cal.add_subparsers(dest="calcmd", required=True)
+    cs = calsub.add_parser("sheet", help="write a short calibration pattern to wind")
+    cs.add_argument("--pins", type=int, default=300)
+    cs.add_argument("--frame-mm", type=float, default=700)
+    cs.add_argument("--lines", type=int, default=250)
+    cs.add_argument("--out", default="outputs/calibration")
+    cs.set_defaults(func=_calibrate_sheet)
+    cf = calsub.add_parser("fit", help="fit thread opacity from a photo of the wound pattern")
+    cf.add_argument("photo")
+    cf.add_argument("--sheet", default="outputs/calibration", help="folder from `sheet`")
+    cf.add_argument("--circle", help="frame circle in the photo as cx,cy,r (if auto fails)")
+    cf.set_defaults(func=_calibrate_fit)
 
     f = sub.add_parser("fetch-models", help="download the YuNet face and LBF landmark models")
     f.add_argument("--no-lbf", action="store_true", help="skip the 56 MB landmark model")
     f.set_defaults(func=_fetch_models)
     return p
+
+
+def _calibrate_sheet(args) -> None:
+    from .calibrate import calibration_target, make_sheet
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    seq, pins, text = make_sheet(args.pins, args.frame_mm, args.lines)
+    (out / "instructions.txt").write_text(text, encoding="utf-8")
+    save_sequence(
+        out / "sequence.json",
+        sequence=seq,
+        pins=pins,
+        size=600,
+        frame="circle",
+        opacity=0.25,
+        meta={"calibration": True, "frame_mm": args.frame_mm},
+    )
+    save_gray(out / "pattern_preview.png", render_sequence(seq, pins, (600, 600), 0.25).image())
+    save_gray(out / "pattern_target.png", calibration_target())
+    print(f"calibration pattern: {len(seq) - 1} lines -> {out / 'instructions.txt'}")
+
+
+def _calibrate_fit(args) -> None:
+    from .calibrate import bare_mask, fit_opacity, photo_darkness
+
+    doc = load_sequence(Path(args.sheet) / "sequence.json")
+    if not doc.get("meta", {}).get("calibration"):
+        raise ValueError(f"{args.sheet} does not hold a calibration pattern (run `sheet` first)")
+    circle = tuple(float(v) for v in args.circle.split(",")) if args.circle else None
+    bare = bare_mask(doc["sequence"], doc["n_pins"])
+    dark = photo_darkness(load_image(args.photo), circle, bare=bare)
+    frame_mm = doc["meta"]["frame_mm"]
+    fit = fit_opacity(doc["sequence"], doc["n_pins"], frame_mm, dark)
+    save_gray(Path(args.sheet) / "photo_darkness.png", 1.0 - dark)
+    print(
+        f"effective opacity {fit.opacity:.3f} -> use --thread-mm {fit.thread_mm:.3f} "
+        f"with --frame-mm {frame_mm:g} (fit error {fit.error:.5f})"
+    )
 
 
 def _fetch_models(args) -> None:

@@ -72,6 +72,12 @@ same licences.*
 5. **Cost:** colour runs take about 9 s (vs about 1 s for black greedy) and use about 2× the
    thread. Refinement (M4) is grayscale-only for now.
 
+> **Revised in M8:** the default palette is now chosen by *reachable gamut* rather than by
+> snapping k-means centres: ΔE2000 11.34 vs 12.56 here (−5.0 vs the LessWrong-style baseline,
+> 12/12), confirmed on the held-out set (11.14 vs 12.59, 11/12), at a small cost in luminance
+> SSIM. The boy's palette now includes yellow (ΔE 12.2 → 10.4). See
+> [M8](M8-hardening.md#3-palette-by-reachable-gamut-colorfit_palette).
+
 ## Tests
 9 colour tests:
 - black thread = the grayscale renderer

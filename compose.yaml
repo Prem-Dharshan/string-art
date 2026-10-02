@@ -1,0 +1,43 @@
+# docker compose build
+# docker compose run --rm stringart stringart fetch-models
+# docker compose run --rm stringart python experiments/fetch_dataset.py
+# docker compose run --rm stringart pytest -q
+# docker compose run -d --name sa-exp stringart python experiments/evaluate_color.py   (detached)
+# docker compose up demo        -> http://localhost:7860
+#
+# Named volumes keep datasets, face models and results between runs:
+#   stringart-data      /app/data/raw            (the M6 evaluation set)
+#   stringart-heldout   /app/data/raw_heldout    (the rule-chosen held-out set)
+#   stringart-models    /app/models              (YuNet + LBF)
+#   stringart-outputs   /app/outputs             (experiment results and figures)
+# Copy results out with: docker compose cp stringart:/app/outputs/experiments ./outputs/
+name: stringart
+
+x-common: &common
+  build: .
+  image: stringart:latest
+  volumes:
+    - stringart-data:/app/data/raw
+    - stringart-heldout:/app/data/raw_heldout
+    - stringart-models:/app/models
+    - stringart-outputs:/app/outputs
+  # Cap memory so a long experiment cannot starve the host.
+  mem_limit: ${STRINGART_MEM_LIMIT:-6g}
+  environment:
+    NUMBA_NUM_THREADS: ${STRINGART_THREADS:-8}
+
+services:
+  stringart:
+    <<: *common
+
+  demo:
+    <<: *common
+    command: ["stringart", "demo", "--host", "0.0.0.0"]
+    ports:
+      - "7860:7860"
+
+volumes:
+  stringart-data:
+  stringart-heldout:
+  stringart-models:
+  stringart-outputs:

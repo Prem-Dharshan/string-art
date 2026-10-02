@@ -1,0 +1,141 @@
+{
+ "description": "Held-out set (never used for tuning), chosen by the rule in experiments/build_heldout.py",
+ "attribution_note": "Held-out images from Wikimedia Commons, chosen by a fixed rule. `*_fault` images are synthetic exposure faults of held-out faces.",
+ "width": 1600,
+ "images": [
+  {
+   "id": "x01_face",
+   "category": "face",
+   "title": "File:Alexander Serov (directeur sportif Gazprom) au matin de la première étape du Tour de l'Ain 2021.jpg",
+   "rule": "Quality images of men"
+  },
+  {
+   "id": "x02_face",
+   "category": "face",
+   "title": "File:Alexandros Katranis, U21 CZE-GRE 2019-10-10.jpg",
+   "rule": "Quality images of men"
+  },
+  {
+   "id": "x03_face",
+   "category": "face",
+   "title": "File:Algérie - Arménie - 20140531 - Saphir Taider.jpg",
+   "rule": "Quality images of men"
+  },
+  {
+   "id": "x04_face",
+   "category": "face",
+   "title": "File:Amiens France Bishop-Olivier-Claude-Philippe-Marie-Leborgne-02.jpg",
+   "rule": "Quality images of men"
+  },
+  {
+   "id": "x05_face",
+   "category": "face",
+   "title": "File:2008-02-02 Fred Kellner u. die famosen Soulsisters feat. Anke Engelke, Rhein-Mosel-Halle, Koblenz IMG 6608.jpg",
+   "rule": "Quality images of women"
+  },
+  {
+   "id": "x06_face",
+   "category": "face",
+   "title": "File:2008-08-16 R(h)einspaziert IMG 3770.jpg",
+   "rule": "Quality images of women"
+  },
+  {
+   "id": "x07_face",
+   "category": "face",
+   "title": "File:2011-05-18-landtagsprojekt-erfurt-053.jpg",
+   "rule": "Quality images of women"
+  },
+  {
+   "id": "x08_face",
+   "category": "face",
+   "title": "File:2011-06-22-Cansu-Özdemir-by-RalfR-07.jpg",
+   "rule": "Quality images of women"
+  },
+  {
+   "id": "x09_animal",
+   "category": "animal",
+   "title": "File:Human–canine friendship - girl hugging her dog tightly at golden hour in Laos.jpg",
+   "rule": "Quality images of dogs"
+  },
+  {
+   "id": "x10_animal",
+   "category": "animal",
+   "title": "File:Human–canine friendship - smiling girl hugging her dog at golden hour in Laos.jpg",
+   "rule": "Quality images of dogs"
+  },
+  {
+   "id": "x11_animal",
+   "category": "animal",
+   "title": "File:2013 Longines Global Champions - Lausanne - 14-09-2013 - Guillaume Hennequin et Chairman LS La Silla 2.jpg",
+   "rule": "Quality images of horses"
+  },
+  {
+   "id": "x12_animal",
+   "category": "animal",
+   "title": "File:2013 Longines Global Champions - Lausanne - 14-09-2013 - Guillaume Hennequin et Chairman LS La Silla 3.jpg",
+   "rule": "Quality images of horses"
+  },
+  {
+   "id": "x13_fault",
+   "category": "hard",
+   "derived_from": "x01_face",
+   "transform": "underexpose",
+   "params": {
+    "gamma": 1.8,
+    "gain": 0.7
+   }
+  },
+  {
+   "id": "x14_fault",
+   "category": "hard",
+   "derived_from": "x02_face",
+   "transform": "low_contrast",
+   "params": {
+    "lo": 60,
+    "span": 90
+   }
+  },
+  {
+   "id": "x15_fault",
+   "category": "hard",
+   "derived_from": "x03_face",
+   "transform": "washed_out",
+   "params": {
+    "gamma": 0.5,
+    "gain": 0.85,
+    "lift": 35
+   }
+  },
+  {
+   "id": "x16_fault",
+   "category": "hard",
+   "derived_from": "x01_face",
+   "transform": "underexpose",
+   "params": {
+    "gamma": 2.6,
+    "gain": 0.45
+   }
+  },
+  {
+   "id": "x17_fault",
+   "category": "hard",
+   "derived_from": "x02_face",
+   "transform": "low_contrast",
+   "params": {
+    "lo": 120,
+    "span": 50
+   }
+  },
+  {
+   "id": "x18_fault",
+   "category": "hard",
+   "derived_from": "x03_face",
+   "transform": "washed_out",
+   "params": {
+    "gamma": 0.35,
+    "gain": 0.95,
+    "lift": 15
+   }
+  }
+ ]
+}

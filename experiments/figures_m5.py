@@ -20,7 +20,7 @@ IDS = [
 COLS = [
     ("target", "target (preprocessed photo)"),
     ("lw_baseline", "LessWrong-style baseline"),
-    ("joint", "joint colour greedy (ours)"),
+    ("joint_fitpal", "ours: joint greedy, gamut palette"),
 ]
 
 
