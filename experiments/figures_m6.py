@@ -17,8 +17,14 @@ import numpy as np
 from matplotlib.figure import Figure
 
 ROOT = Path(__file__).resolve().parents[1]
-SURFACE, INK, INK2, MUTED, GRID, AXIS = ("#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9",
-                                         "#c3c2b7")
+SURFACE, INK, INK2, MUTED, GRID, AXIS = (
+    "#fcfcfb",
+    "#0b0b0b",
+    "#52514e",
+    "#898781",
+    "#e1e0d9",
+    "#c3c2b7",
+)
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]  # blue, orange, aqua, yellow
 METHODS = {  # entity -> (label, colour); fixed across figures
     "A_baseline_published": ("A  baseline, 3000 lines", SERIES[0]),
@@ -26,8 +32,13 @@ METHODS = {  # entity -> (label, colour); fixed across figures
     "C_greedy_legacy": ("C  greedy solver (M2)", SERIES[2]),
     "D_full": ("D  full method (M2 + M3)", SERIES[3]),
 }
-CATS = [("face", "Faces"), ("hard", "Hard cases"), ("animal", "Animals"), ("object", "Objects"),
-        ("all", "All")]
+CATS = [
+    ("face", "Faces"),
+    ("hard", "Hard cases"),
+    ("animal", "Animals"),
+    ("object", "Objects"),
+    ("all", "All"),
+]
 
 
 def read(path: Path) -> list[dict]:
@@ -80,8 +91,17 @@ def dotplot(ax, groups, series, title, xlabel):
             if np.isnan(v):
                 continue
             y = g - 0.4 + step * (i + 0.5)
-            ax.plot([v], [y], "o", color=series[k][1], markersize=8, markeredgecolor=SURFACE,
-                    markeredgewidth=1.5, zorder=3, label=series[k][0] if g == 0 else None)
+            ax.plot(
+                [v],
+                [y],
+                "o",
+                color=series[k][1],
+                markersize=8,
+                markeredgecolor=SURFACE,
+                markeredgewidth=1.5,
+                zorder=3,
+                label=series[k][0] if g == 0 else None,
+            )
             ax.text(v, y, f"   {v:.3f}", fontsize=7.5, color=INK2, va="center")
     ax.set_yticks(range(len(groups)), [g for g, _ in groups])
     ax.invert_yaxis()
@@ -96,24 +116,42 @@ def dotplot(ax, groups, series, title, xlabel):
 def fig_main(rows, out: Path):
     fig, axes = new_fig(13, 5.2, 2)
     series = {m: v for m, v in METHODS.items()}
-    panels = [("ssim_s2", "Whole frame: SSIM at viewing blur σ = 2 px", CATS),
-              ("ssim_roi_s2", "Face region only: SSIM at σ = 2 px",
-               [("face", "Faces"), ("hard", "Hard cases"), ("facehard", "Faces + hard")])]
+    panels = [
+        ("ssim_s2", "Whole frame: SSIM at viewing blur σ = 2 px", CATS),
+        (
+            "ssim_roi_s2",
+            "Face region only: SSIM at σ = 2 px",
+            [("face", "Faces"), ("hard", "Hard cases"), ("facehard", "Faces + hard")],
+        ),
+    ]
     for ax, (metric, title, cats) in zip(axes, panels, strict=True):
         groups = []
         for c, name in cats:
             vals = {}
             for meth in METHODS:
-                v = [fnum(r[metric]) for r in rows if r["method"] == meth and (
-                    c == "all" or r["category"] == c
-                    or (c == "facehard" and r["category"] in ("face", "hard")))]
+                v = [
+                    fnum(r[metric])
+                    for r in rows
+                    if r["method"] == meth
+                    and (
+                        c == "all"
+                        or r["category"] == c
+                        or (c == "facehard" and r["category"] in ("face", "hard"))
+                    )
+                ]
                 v = [x for x in v if not np.isnan(x)]
                 vals[meth] = np.mean(v) if v else np.nan
                 n = len(v)
             groups.append((f"{name} (n={n})", vals))
         dotplot(ax, groups, series, title, "mean SSIM (higher is better)")
-    axes[0].legend(frameon=False, fontsize=9, loc="upper left", ncols=2, labelcolor=INK2,
-                   bbox_to_anchor=(0, -0.1))
+    axes[0].legend(
+        frameon=False,
+        fontsize=9,
+        loc="upper left",
+        ncols=2,
+        labelcolor=INK2,
+        bbox_to_anchor=(0, -0.1),
+    )
     save(fig, out / "m6_main_comparison.png")
 
 
@@ -131,57 +169,105 @@ def fig_curves(rows, out: Path):
             ax.text(xs[-1], ys[-1], f" {labels[s]}", color=INK2, fontsize=8, va="center")
         stop = int(rr[0]["auto_stop"])
         ax.axvline(stop, color=MUTED, linewidth=1, linestyle=(0, (3, 3)))
-        ax.text(stop, ax.get_ylim()[0], f" auto-stop\n {stop}", color=MUTED, fontsize=8,
-                va="bottom")
+        ax.text(
+            stop, ax.get_ylim()[0], f" auto-stop\n {stop}", color=MUTED, fontsize=8, va="bottom"
+        )
         style(ax, "SSIM σ = 2" if ax is axes[0] else None, "lines")
         ax.set_title(img.split("_", 1)[1].replace("_", " "), color=INK, fontsize=10, loc="left")
         ax.set_xlim(0, max(int(r["lines"]) for r in rr) * 1.25)
     handles, labels_ = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels_, frameon=False, fontsize=9, labelcolor=INK2, ncols=2,
-               loc="lower left", bbox_to_anchor=(0.06, 0.98))
+    fig.legend(
+        handles,
+        labels_,
+        frameon=False,
+        fontsize=9,
+        labelcolor=INK2,
+        ncols=2,
+        loc="lower left",
+        bbox_to_anchor=(0.06, 0.98),
+    )
     save(fig, out / "m6_line_curves.png")
 
 
 def fig_sweep(rows, param, xlabel, out: Path):
     vals = sorted({fnum(r[param]) for r in rows})
     fig, axes = new_fig(10, 3.6, 2)
-    for ax, (metric, title) in zip(axes, (("ssim_s2", "whole frame"),
-                                          ("ssim_roi_s2", "face region")), strict=True):
+    for ax, (metric, title) in zip(
+        axes, (("ssim_s2", "whole frame"), ("ssim_roi_s2", "face region")), strict=True
+    ):
         means = [np.mean([fnum(r[metric]) for r in rows if fnum(r[param]) == v]) for v in vals]
-        ax.plot(vals, means, color=SERIES[3], linewidth=2, marker="o", markersize=7,
-                markeredgecolor=SURFACE, markeredgewidth=1.5)
+        ax.plot(
+            vals,
+            means,
+            color=SERIES[3],
+            linewidth=2,
+            marker="o",
+            markersize=7,
+            markeredgecolor=SURFACE,
+            markeredgewidth=1.5,
+        )
         for v, m in zip(vals, means, strict=True):
             ax.text(v, m, f"  {m:.3f}", fontsize=8, color=INK2, va="center")
         style(ax, f"mean SSIM σ = 2, {title}", xlabel)
         ax.set_xticks(vals)
         ax.set_title(f"Full method: {title}", color=INK, fontsize=10, loc="left")
     lines = [np.mean([fnum(r["lines"]) for r in rows if fnum(r[param]) == v]) for v in vals]
-    axes[0].text(0.0, -0.3, "mean lines: " + ", ".join(f"{v:g} → {n:.0f}"
-                                                         for v, n in zip(vals, lines, strict=True)),
-                 transform=axes[0].transAxes, fontsize=8, color=MUTED)
+    axes[0].text(
+        0.0,
+        -0.3,
+        "mean lines: " + ", ".join(f"{v:g} → {n:.0f}" for v, n in zip(vals, lines, strict=True)),
+        transform=axes[0].transAxes,
+        fontsize=8,
+        color=MUTED,
+    )
     save(fig, out / f"m6_sweep_{param}.png")
 
 
 def fig_robust(rows, out: Path):
-    fault = [r for r in rows
-             if r["stretch"] in ("auto", "off") and r["transform"] != "none (clean)"]
+    fault = [
+        r for r in rows if r["stretch"] in ("auto", "off") and r["transform"] != "none (clean)"
+    ]
     clean = [r for r in rows if r["transform"] == "none (clean)"]
     transforms = sorted({r["transform"] for r in fault})
     fig, axes = new_fig(7, 3.4)
     ax = axes[0]
-    series = {"off": ("level stretch off", SERIES[0]),
-              "auto": ("auto stretch (default)", SERIES[3])}
-    groups = [(t.replace("_", " "),
-               {st: fnum(next(r for r in fault if r["transform"] == t and r["stretch"] == st)
-                         ["ssim_s2_vs_clean"]) for st in series}) for t in transforms]
-    dotplot(ax, groups, series, "Exposure faults of f07, scored against the clean photo",
-            "SSIM σ = 2 vs. the clean photo")
+    series = {
+        "off": ("level stretch off", SERIES[0]),
+        "auto": ("auto stretch (default)", SERIES[3]),
+    }
+    groups = [
+        (
+            t.replace("_", " "),
+            {
+                st: fnum(
+                    next(r for r in fault if r["transform"] == t and r["stretch"] == st)[
+                        "ssim_s2_vs_clean"
+                    ]
+                )
+                for st in series
+            },
+        )
+        for t in transforms
+    ]
+    dotplot(
+        ax,
+        groups,
+        series,
+        "Exposure faults of f07, scored against the clean photo",
+        "SSIM σ = 2 vs. the clean photo",
+    )
     if clean:
         ref = fnum(clean[0]["ssim_s2_vs_clean"])
         ax.axvline(ref, color=MUTED, linewidth=1, linestyle=(0, (3, 3)))
         ax.text(ref, -0.55, f"clean input {ref:.3f}", color=MUTED, fontsize=8, ha="center")
-    ax.legend(frameon=False, fontsize=9, labelcolor=INK2, loc="upper left",
-              bbox_to_anchor=(0, -0.2), ncols=2)
+    ax.legend(
+        frameon=False,
+        fontsize=9,
+        labelcolor=INK2,
+        loc="upper left",
+        bbox_to_anchor=(0, -0.2),
+        ncols=2,
+    )
     save(fig, out / "m6_robustness.png")
 
 
@@ -189,8 +275,10 @@ def fig_gallery(rows, src: Path, out: Path, ids):
     rdir = src / "renders"
     tiles = []
     for i in ids:
-        cols = [cv2.imread(str(rdir / f"{i}__{s}.png"), cv2.IMREAD_GRAYSCALE)
-                for s in ("plain", "A_baseline_published", "D_full")]
+        cols = [
+            cv2.imread(str(rdir / f"{i}__{s}.png"), cv2.IMREAD_GRAYSCALE)
+            for s in ("plain", "A_baseline_published", "D_full")
+        ]
         if any(c is None for c in cols):
             continue
         tiles.append(np.hstack(cols))
@@ -201,8 +289,7 @@ def fig_gallery(rows, src: Path, out: Path, ids):
     header = np.full((h, grid.shape[1]), 252, np.uint8)
     w = grid.shape[1] // 3
     for k, t in enumerate(("photo (same crop)", "A: baseline, 3000 lines", "D: full method")):
-        cv2.putText(header, t, (k * w + 10, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 40, 1,
-                    cv2.LINE_AA)
+        cv2.putText(header, t, (k * w + 10, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 40, 1, cv2.LINE_AA)
     path = out / "m6_gallery.png"
     cv2.imwrite(str(path), np.vstack([header, grid]))
     print(f"wrote {path}")
@@ -219,9 +306,19 @@ def main():
     if (src / "main.csv").is_file():
         main_rows = read(src / "main.csv")
         fig_main(main_rows, out)
-        fig_gallery(main_rows, src, out, ["f07_woman_smiling_closeup", "f16_elderly_man_pipe_bw",
-                                          "f13_girl_bw_smiling", "f05_athlete_dark_bg",
-                                          "a04_cat_black_white", "o01_lighthouse_striped"])
+        fig_gallery(
+            main_rows,
+            src,
+            out,
+            [
+                "f07_woman_smiling_closeup",
+                "f16_elderly_man_pipe_bw",
+                "f13_girl_bw_smiling",
+                "f05_athlete_dark_bg",
+                "a04_cat_black_white",
+                "o01_lighthouse_striped",
+            ],
+        )
     if (src / "curves.csv").is_file():
         fig_curves(read(src / "curves.csv"), out)
     if (src / "pins.csv").is_file():

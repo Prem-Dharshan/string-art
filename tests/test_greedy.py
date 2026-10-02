@@ -60,8 +60,12 @@ def test_max_lines_cap(pins, target):
 
 def test_blur_objective_gains_match_blurred_error_drop(pins, target):
     sigma = 1.5
-    res = solve_greedy(target, pins, GreedyConfig(objective="blur", blur_sigma=sigma, min_gap=6,
-                                                  opacity=0.25), progress=False)
+    res = solve_greedy(
+        target,
+        pins,
+        GreedyConfig(objective="blur", blur_sigma=sigma, min_gap=6, opacity=0.25),
+        progress=False,
+    )
     img = render_sequence(res.sequence, pins, target.shape, 0.25).image()
     blur_err = lambda im: float(np.sum(_blur0(im - target, sigma) ** 2))  # noqa: E731
     drop = blur_err(np.ones_like(target)) - blur_err(img)
@@ -83,9 +87,15 @@ def test_weights_steer_lines(pins):
     assert pins[up[1]][1] < 59.5 < pins[down[1]][1]
 
 
-@pytest.mark.parametrize("cfg", [GreedyConfig(opacity=0), GreedyConfig(min_gap=40),
-                                 GreedyConfig(objective="nope"),
-                                 GreedyConfig(objective="blur", blur_sigma=0)])
+@pytest.mark.parametrize(
+    "cfg",
+    [
+        GreedyConfig(opacity=0),
+        GreedyConfig(min_gap=40),
+        GreedyConfig(objective="nope"),
+        GreedyConfig(objective="blur", blur_sigma=0),
+    ],
+)
 def test_invalid_config(pins, target, cfg):
     with pytest.raises(ValueError):
         solve_greedy(target, pins, cfg, progress=False)

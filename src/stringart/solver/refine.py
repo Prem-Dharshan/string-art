@@ -97,18 +97,23 @@ def _inc(counts, i, j, v):
 
 
 @njit(cache=True, parallel=True)
-def _score_via(pins, a, c, s1, s2, s3, h, wd, d, t, w, alpha, counts, min_gap, max_repeats,
-               out):
+def _score_via(pins, a, c, s1, s2, s3, h, wd, d, t, w, alpha, counts, min_gap, max_repeats, out):
     """out[x] = gain of adding a -> x -> c on the current canvas (-inf if not allowed).
     Read-only on d, so candidates are scored in parallel."""
     n = pins.shape[0]
     for x in prange(n):
-        if (x == s1 or x == s2 or x == s3 or not _ok(a, x, n, counts, min_gap, max_repeats)
-                or not _ok(x, c, n, counts, min_gap, max_repeats)):
+        if (
+            x == s1
+            or x == s2
+            or x == s3
+            or not _ok(a, x, n, counts, min_gap, max_repeats)
+            or not _ok(x, c, n, counts, min_gap, max_repeats)
+        ):
             out[x] = -np.inf
         else:
-            out[x] = (_line_op(pins, a, x, h, wd, d, t, w, alpha, ADD_SCORE)
-                      + _line_op(pins, x, c, h, wd, d, t, w, alpha, ADD_SCORE))
+            out[x] = _line_op(pins, a, x, h, wd, d, t, w, alpha, ADD_SCORE) + _line_op(
+                pins, x, c, h, wd, d, t, w, alpha, ADD_SCORE
+            )
 
 
 @njit(cache=True)
@@ -121,8 +126,23 @@ def _argmax(out):
 
 
 @njit(cache=True)
-def _sweep(pins, h, wd, d, t, w, alpha, seq, length, counts, min_gap, max_repeats, do_insert,
-           min_gain, max_len):
+def _sweep(
+    pins,
+    h,
+    wd,
+    d,
+    t,
+    w,
+    alpha,
+    seq,
+    length,
+    counts,
+    min_gap,
+    max_repeats,
+    do_insert,
+    min_gain,
+    max_len,
+):
     """One pass over the path. `seq[:length]` is edited in place (capacity `max_len`).
     Returns (new length, total E drop, #deletes, #reroutes, #inserts)."""
     n = pins.shape[0]
@@ -144,8 +164,9 @@ def _sweep(pins, h, wd, d, t, w, alpha, seq, length, counts, min_gap, max_repeat
             if _ok(a, c, n, counts, min_gap, max_repeats) and pa != c and pc != a:
                 best = _line_op(pins, a, c, h, wd, d, t, w, alpha, ADD_SCORE)
                 best_b = -1
-            _score_via(pins, a, c, b, pa, pc, h, wd, d, t, w, alpha, counts, min_gap,
-                       max_repeats, out)
+            _score_via(
+                pins, a, c, b, pa, pc, h, wd, d, t, w, alpha, counts, min_gap, max_repeats, out
+            )
             g, x = _argmax(out)
             if x >= 0 and g > best:
                 best, best_b = g, x
@@ -190,8 +211,9 @@ def _sweep(pins, h, wd, d, t, w, alpha, seq, length, counts, min_gap, max_repeat
             pb = seq[k + 1] if k + 1 < length else -1
             base = _line_op(pins, a, b, h, wd, d, t, w, alpha, REM_APPLY)
             _inc(counts, a, b, -1)
-            _score_via(pins, a, b, pa, pb, -1, h, wd, d, t, w, alpha, counts, min_gap,
-                       max_repeats, out)
+            _score_via(
+                pins, a, b, pa, pb, -1, h, wd, d, t, w, alpha, counts, min_gap, max_repeats, out
+            )
             best, best_x = _argmax(out)
             kept = False
             if best_x >= 0 and base + best > min_gain:
@@ -230,15 +252,28 @@ def weighted_error(d, t, w) -> float:
     return float(np.sum(w * (t - d) ** 2))
 
 
-def refine(target, pins, sequence, opacity, min_gap=10, max_repeats=2, weights=None,
-           cfg: RefineConfig = RefineConfig(), progress=True):  # noqa: B008
+def refine(
+    target,
+    pins,
+    sequence,
+    opacity,
+    min_gap=10,
+    max_repeats=2,
+    weights=None,
+    cfg: RefineConfig | None = None,
+    progress=True,
+):
     """Return (new sequence, stats dict). E never increases."""
+    cfg = cfg or RefineConfig()
     if not 0 < opacity < 1:
         raise ValueError("refinement needs 0 < opacity < 1 (removal divides by 1 - opacity)")
     h, wd = target.shape
     t = np.ascontiguousarray((1.0 - target).ravel(), dtype=np.float64)
-    w = (np.ones_like(t) if weights is None
-         else np.ascontiguousarray(np.asarray(weights, np.float64).ravel()))
+    w = (
+        np.ones_like(t)
+        if weights is None
+        else np.ascontiguousarray(np.asarray(weights, np.float64).ravel())
+    )
     pins = np.ascontiguousarray(pins, dtype=np.float64)
     n = len(pins)
     t0 = time.perf_counter()
@@ -254,14 +289,31 @@ def refine(target, pins, sequence, opacity, min_gap=10, max_repeats=2, weights=N
     length = len(sequence)
     stats = {"sweeps": [], "e_start": e_start}
     for s in range(cfg.sweeps):
-        length, gained, nd, nr, ni = _sweep(pins, h, wd, d, t, w, float(opacity), seq, length,
-                                            counts, min_gap, max_repeats, cfg.insert,
-                                            cfg.min_gain, max_len)
-        stats["sweeps"].append({"gain": gained, "deleted": nd, "rerouted": nr, "inserted": ni,
-                                "lines": length - 1})
+        length, gained, nd, nr, ni = _sweep(
+            pins,
+            h,
+            wd,
+            d,
+            t,
+            w,
+            float(opacity),
+            seq,
+            length,
+            counts,
+            min_gap,
+            max_repeats,
+            cfg.insert,
+            cfg.min_gain,
+            max_len,
+        )
+        stats["sweeps"].append(
+            {"gain": gained, "deleted": nd, "rerouted": nr, "inserted": ni, "lines": length - 1}
+        )
         if progress:
-            print(f"refine sweep {s + 1}: dE={gained:.2f}  -{nd} lines, ~{nr} moved, "
-                  f"+{ni} lines -> {length - 1}")
+            print(
+                f"refine sweep {s + 1}: dE={gained:.2f}  -{nd} lines, ~{nr} moved, "
+                f"+{ni} lines -> {length - 1}"
+            )
         if nd + nr + ni == 0:
             break
     stats["e_end"] = weighted_error(d, t, w)

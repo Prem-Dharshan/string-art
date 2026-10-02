@@ -36,13 +36,23 @@ class Source:
     @classmethod
     def gray(cls, sequence: Sequence[int], pins, shape, opacity) -> "Source":
         seq = list(sequence)
-        return cls(np.asarray(pins), tuple(shape),
-                   [(-1, a, b) for a, b in zip(seq[:-1], seq[1:], strict=True)], opacity)
+        return cls(
+            np.asarray(pins),
+            tuple(shape),
+            [(-1, a, b) for a, b in zip(seq[:-1], seq[1:], strict=True)],
+            opacity,
+        )
 
     @classmethod
     def color(cls, steps, pins, shape, colors, opacity, names=None) -> "Source":
-        return cls(np.asarray(pins), tuple(shape), [tuple(s) for s in steps], opacity,
-                   np.asarray(colors, dtype=np.float64), names)
+        return cls(
+            np.asarray(pins),
+            tuple(shape),
+            [tuple(s) for s in steps],
+            opacity,
+            np.asarray(colors, dtype=np.float64),
+            names,
+        )
 
     @property
     def is_color(self) -> bool:
@@ -102,8 +112,14 @@ def _imshow_kw(img):
     return {} if img.ndim == 3 else {"cmap": "gray", "vmin": 0, "vmax": 1}
 
 
-def play(src: Source, target: np.ndarray | None = None, mask: np.ndarray | None = None,
-         lines_per_frame: int = 10, interval_ms: int = 30, metrics_every: int = 200) -> None:
+def play(
+    src: Source,
+    target: np.ndarray | None = None,
+    mask: np.ndarray | None = None,
+    lines_per_frame: int = 10,
+    interval_ms: int = 30,
+    metrics_every: int = 200,
+) -> None:
     """Open an interactive window that draws the result line by line."""
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation
@@ -133,8 +149,9 @@ def play(src: Source, target: np.ndarray | None = None, mask: np.ndarray | None 
     (cur_pin,) = ax_r.plot([], [], "o", color=hi, ms=4)
     ax_r.set_title("Threads so far")
     status = fig.text(0.01, 0.02, "", family="monospace", fontsize=9)
-    fig.text(0.99, 0.02, "space pause · → step · +/- speed · e end", ha="right", fontsize=8,
-             color="gray")
+    fig.text(
+        0.99, 0.02, "space pause · → step · +/- speed · e end", ha="right", fontsize=8, color="gray"
+    )
 
     def advance(count: int) -> None:
         for _ in range(count):
@@ -159,8 +176,10 @@ def play(src: Source, target: np.ndarray | None = None, mask: np.ndarray | None 
             state["status_metrics"] = _status_metrics(target, img, mask)
         what = src.label(k) if k > 0 else ""
         flag = "  [done]" if done else ("  [paused]" if state["paused"] else "")
-        status.set_text(f"line {k:>5}/{n_lines}   {what}   {state['speed']} lines/frame"
-                        f"{state['status_metrics']}{flag}")
+        status.set_text(
+            f"line {k:>5}/{n_lines}   {what}   {state['speed']} lines/frame"
+            f"{state['status_metrics']}{flag}"
+        )
 
     def on_frame(_):
         if not state["paused"] and state["k"] < n_lines:
@@ -187,8 +206,7 @@ def play(src: Source, target: np.ndarray | None = None, mask: np.ndarray | None 
     fig.canvas.mpl_connect("key_press_event", on_key)
     fig.tight_layout(rect=(0, 0.05, 1, 1))
     # Keep a reference so the animation isn't garbage-collected while the window is open.
-    fig._stringart_anim = FuncAnimation(fig, on_frame, interval=interval_ms,
-                                        cache_frame_data=False)
+    fig._stringart_anim = FuncAnimation(fig, on_frame, interval=interval_ms, cache_frame_data=False)
     plt.show()
 
 
@@ -206,13 +224,28 @@ def _frame_bgr(src: Source, img: np.ndarray, k: int, scale: float) -> np.ndarray
     p1 = tuple(int(round(v * scale)) for v in src.pins[b])
     color = (255, 200, 0) if src.is_color else (0, 0, 255)
     cv2.line(frame, p0, p1, color, 1, cv2.LINE_AA)
-    cv2.putText(frame, f"{k}/{src.n_lines}", (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                (40, 40, 200), 1, cv2.LINE_AA)
+    cv2.putText(
+        frame,
+        f"{k}/{src.n_lines}",
+        (8, 22),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (40, 40, 200),
+        1,
+        cv2.LINE_AA,
+    )
     return frame
 
 
-def export(src: Source, out_path: Path, lines_per_frame: int | None = None, fps: int = 30,
-           duration_s: float = 15.0, hold_s: float = 2.0, scale: float = 1.0) -> Path:
+def export(
+    src: Source,
+    out_path: Path,
+    lines_per_frame: int | None = None,
+    fps: int = 30,
+    duration_s: float = 15.0,
+    hold_s: float = 2.0,
+    scale: float = 1.0,
+) -> Path:
     """Write the build-up as .mp4 or .gif. By default the clip lasts about `duration_s`."""
     out_path = Path(out_path)
     suffix = out_path.suffix.lower()
@@ -241,13 +274,24 @@ def export(src: Source, out_path: Path, lines_per_frame: int | None = None, fps:
 
         imgs = [Image.fromarray(cv2.cvtColor(f, cv2.COLOR_BGR2RGB)) for f in frames]
         durations = [int(1000 / fps)] * (len(imgs) - 1) + [int(hold_s * 1000)]
-        imgs[0].save(out_path, save_all=True, append_images=imgs[1:], duration=durations,
-                     loop=0, optimize=True)
+        imgs[0].save(
+            out_path,
+            save_all=True,
+            append_images=imgs[1:],
+            duration=durations,
+            loop=0,
+            optimize=True,
+        )
     return out_path
 
 
-def snapshot_grid(src: Source, counts: Sequence[int], out_path: Path,
-                  target: np.ndarray | None = None, mask: np.ndarray | None = None) -> Path:
+def snapshot_grid(
+    src: Source,
+    counts: Sequence[int],
+    out_path: Path,
+    target: np.ndarray | None = None,
+    mask: np.ndarray | None = None,
+) -> Path:
     """Save one figure with the render after each line count in `counts` (plus target)."""
     from matplotlib.figure import Figure  # no pyplot: never touches the interactive backend
 

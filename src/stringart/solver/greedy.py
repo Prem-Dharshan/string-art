@@ -91,13 +91,13 @@ def _score_from(pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, t, w, a
         if min(gap, n - gap) < min_gap or j == prev or counts[cur, j] >= max_repeats:
             out[j] = -np.inf
         else:
-            out[j] = _line(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d, t, w,
-                           alpha, False)
+            out[j] = _line(
+                pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d, t, w, alpha, False
+            )
 
 
 @njit(cache=True)
-def _solve(pins, h, wd, d, t, w, alpha, max_lines, min_gap, max_repeats, stop_tol, patience,
-           start):
+def _solve(pins, h, wd, d, t, w, alpha, max_lines, min_gap, max_repeats, stop_tol, patience, start):
     n = pins.shape[0]
     counts = np.zeros((n, n), dtype=np.int32)
     seq = np.empty(max_lines + 1, dtype=np.int64)
@@ -119,8 +119,19 @@ def _solve(pins, h, wd, d, t, w, alpha, max_lines, min_gap, max_repeats, stop_to
                 break
         else:
             bad = 0
-        _line(pins[cur, 0], pins[cur, 1], pins[best_j, 0], pins[best_j, 1], h, wd, d, t, w, alpha,
-              True)
+        _line(
+            pins[cur, 0],
+            pins[cur, 1],
+            pins[best_j, 0],
+            pins[best_j, 1],
+            h,
+            wd,
+            d,
+            t,
+            w,
+            alpha,
+            True,
+        )
         counts[cur, best_j] += 1
         counts[best_j, cur] += 1
         gains[k] = best
@@ -184,8 +195,9 @@ def _line_blur(p0x, p0y, p1x, p1y, h, wd, d, field, w, alpha, c0, apply, scratch
 
 
 @njit(cache=True, parallel=True)
-def _best_blur(pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, field, w, alpha, c0,
-               scratch):
+def _best_blur(
+    pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, field, w, alpha, c0, scratch
+):
     n = pins.shape[0]
     scores = np.empty(n)
     for j in prange(n):  # scoring is read-only on d / field
@@ -193,8 +205,21 @@ def _best_blur(pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, field, w
         if min(gap, n - gap) < min_gap or j == prev or counts[cur, j] >= max_repeats:
             scores[j] = -np.inf
         else:
-            scores[j] = _line_blur(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d,
-                                   field, w, alpha, c0, False, scratch)
+            scores[j] = _line_blur(
+                pins[cur, 0],
+                pins[cur, 1],
+                pins[j, 0],
+                pins[j, 1],
+                h,
+                wd,
+                d,
+                field,
+                w,
+                alpha,
+                c0,
+                False,
+                scratch,
+            )
     best, best_j = -np.inf, -1
     for j in range(n):
         if scores[j] > best:
@@ -222,12 +247,39 @@ def _solve_blur(pins, target_dark, w, cfg: "GreedyConfig"):
     cur, prev = cfg.start_pin, -1
     sflat = scratch.ravel()
     while len(gains) < cfg.max_lines:
-        j, g = _best_blur(pins, cur, prev, counts, cfg.min_gap, cfg.max_repeats, h, wd, d, field,
-                          w, cfg.opacity, c0, sflat)
+        j, g = _best_blur(
+            pins,
+            cur,
+            prev,
+            counts,
+            cfg.min_gap,
+            cfg.max_repeats,
+            h,
+            wd,
+            d,
+            field,
+            w,
+            cfg.opacity,
+            c0,
+            sflat,
+        )
         if j < 0 or g <= cfg.stop_tol:
             break
-        _line_blur(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d, field, w,
-                   cfg.opacity, c0, True, sflat)
+        _line_blur(
+            pins[cur, 0],
+            pins[cur, 1],
+            pins[j, 0],
+            pins[j, 1],
+            h,
+            wd,
+            d,
+            field,
+            w,
+            cfg.opacity,
+            c0,
+            True,
+            sflat,
+        )
         # field -= G*(w G*delta), computed only in the line's padded bounding box.
         (ax, ay), (bx, by) = pins[cur], pins[j]
         y0, y1 = max(0, int(min(ay, by)) - pad), min(h, int(max(ay, by)) + pad + 2)
@@ -250,8 +302,9 @@ def line_gain(target, pins, i, j, dark, opacity, weights=None) -> float:
     t = (1.0 - target).ravel()
     w = np.ones_like(t) if weights is None else np.asarray(weights, np.float64).ravel()
     p = np.asarray(pins, np.float64)
-    return _line(p[i, 0], p[i, 1], p[j, 0], p[j, 1], h, wd, dark.ravel().copy(), t, w, opacity,
-                 False)
+    return _line(
+        p[i, 0], p[i, 1], p[j, 0], p[j, 1], h, wd, dark.ravel().copy(), t, w, opacity, False
+    )
 
 
 def solve_greedy(target, pins, cfg: GreedyConfig, weights=None, progress=True) -> SolveResult:
@@ -262,16 +315,31 @@ def solve_greedy(target, pins, cfg: GreedyConfig, weights=None, progress=True) -
         raise ValueError(f"opacity must be in (0, 1], got {cfg.opacity}")
     h, wd = target.shape
     t = np.ascontiguousarray((1.0 - target).ravel(), dtype=np.float64)
-    w = (np.ones_like(t) if weights is None
-         else np.ascontiguousarray(np.asarray(weights, np.float64).ravel()))
+    w = (
+        np.ones_like(t)
+        if weights is None
+        else np.ascontiguousarray(np.asarray(weights, np.float64).ravel())
+    )
     if w.shape != t.shape:
         raise ValueError("weights must have the same shape as target")
     pins = np.ascontiguousarray(pins, dtype=np.float64)
     t0 = time.perf_counter()
     if cfg.objective == "pixel":
-        seq, gains = _solve(pins, h, wd, np.zeros_like(t), t, w, float(cfg.opacity),
-                            cfg.max_lines, cfg.min_gap, cfg.max_repeats, cfg.stop_tol,
-                            cfg.patience, cfg.start_pin)
+        seq, gains = _solve(
+            pins,
+            h,
+            wd,
+            np.zeros_like(t),
+            t,
+            w,
+            float(cfg.opacity),
+            cfg.max_lines,
+            cfg.min_gap,
+            cfg.max_repeats,
+            cfg.stop_tol,
+            cfg.patience,
+            cfg.start_pin,
+        )
     elif cfg.objective == "blur":
         if cfg.blur_sigma <= 0:
             raise ValueError("blur_sigma must be > 0 for the blur objective")

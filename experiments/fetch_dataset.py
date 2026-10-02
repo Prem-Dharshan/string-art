@@ -26,8 +26,9 @@ SPEC = ROOT / "data" / "dataset.json"
 RAW = ROOT / "data" / "raw"
 UA = "stringart-academic-project/0.1 (https://github.com/Prem-Dharshan/string-art)"
 API = "https://commons.wikimedia.org/w/api.php?"
-ALLOWED = re.compile(r"^(public domain|pd|cc0|cc by(-sa)?( [0-9.]+)?( [a-z]{2})?|no restrictions)",
-                     re.I)
+ALLOWED = re.compile(
+    r"^(public domain|pd|cc0|cc by(-sa)?( [0-9.]+)?( [a-z]{2})?|no restrictions)", re.I
+)
 
 
 def _get(url: str) -> bytes:
@@ -47,8 +48,14 @@ def _strip(s: str) -> str:
 
 
 def image_info(title: str, width: int) -> dict:
-    q = {"action": "query", "format": "json", "titles": title, "prop": "imageinfo",
-         "iiprop": "url|size|extmetadata", "iiurlwidth": width}
+    q = {
+        "action": "query",
+        "format": "json",
+        "titles": title,
+        "prop": "imageinfo",
+        "iiprop": "url|size|extmetadata",
+        "iiurlwidth": width,
+    }
     page = next(iter(json.loads(_get(API + urllib.parse.urlencode(q)))["query"]["pages"].values()))
     if "imageinfo" not in page:
         raise RuntimeError(f"{title}: not found on Commons")
@@ -94,8 +101,9 @@ def main() -> None:
     spec = json.loads(SPEC.read_text(encoding="utf-8"))
     RAW.mkdir(parents=True, exist_ok=True)
     manifest_path = RAW / "manifest.json"
-    manifest = (json.loads(manifest_path.read_text(encoding="utf-8"))
-                if manifest_path.is_file() else {})
+    manifest = (
+        json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+    )
 
     for item in spec["images"]:
         if "title" not in item:
@@ -117,24 +125,36 @@ def main() -> None:
     for item in spec["images"]:
         if "derived_from" not in item:
             continue
-        src = cv2.imdecode(np.fromfile(RAW / f"{item['derived_from']}.jpg", np.uint8),
-                           cv2.IMREAD_COLOR)
+        src = cv2.imdecode(
+            np.fromfile(RAW / f"{item['derived_from']}.jpg", np.uint8), cv2.IMREAD_COLOR
+        )
         _write(RAW / f"{item['id']}.jpg", TRANSFORMS[item["transform"]](src.astype(np.float64)))
         base = manifest[item["derived_from"]]
-        manifest[item["id"]] = {**item, "license": base["license"], "artist": base["artist"],
-                                "page": base["page"], "license_url": base.get("license_url", "")}
+        manifest[item["id"]] = {
+            **item,
+            "license": base["license"],
+            "artist": base["artist"],
+            "page": base["page"],
+            "license_url": base.get("license_url", ""),
+        }
         print(f"{item['id']:32s} derived ({item['transform']}) from {item['derived_from']}")
 
     manifest_path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False), encoding="utf-8")
-    lines = ["# Image attribution", "",
-             "Evaluation images from Wikimedia Commons. `h02`–`h04` are synthetic exposure "
-             "variants of `f07` made by `experiments/fetch_dataset.py`.", "",
-             "| id | author | licence | source |", "|---|---|---|---|"]
+    lines = [
+        "# Image attribution",
+        "",
+        "Evaluation images from Wikimedia Commons. `h02`–`h04` are synthetic exposure "
+        "variants of `f07` made by `experiments/fetch_dataset.py`.",
+        "",
+        "| id | author | licence | source |",
+        "|---|---|---|---|",
+    ]
     for item in spec["images"]:
         m = manifest[item["id"]]
         lic = f"[{m['license']}]({m['license_url']})" if m.get("license_url") else m["license"]
-        lines.append(f"| {item['id']} | {m['artist'].replace('|', '/')} | {lic} | "
-                     f"[Commons]({m['page']}) |")
+        lines.append(
+            f"| {item['id']} | {m['artist'].replace('|', '/')} | {lic} | [Commons]({m['page']}) |"
+        )
     (ROOT / "data" / "ATTRIBUTION.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{len(spec['images'])} images ready in {RAW}")
 

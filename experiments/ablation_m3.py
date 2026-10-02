@@ -37,9 +37,11 @@ VARIANTS = {
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("images", nargs="*",
-                    default=["sample:astronaut", "sample:camera", "sample:coffee",
-                             "sample:chelsea"])
+    ap.add_argument(
+        "images",
+        nargs="*",
+        default=["sample:astronaut", "sample:camera", "sample:coffee", "sample:chelsea"],
+    )
     ap.add_argument("--size", type=int, default=600)
     ap.add_argument("--pins", type=int, default=256)
     ap.add_argument("--opacity", type=float, default=0.2)
@@ -59,20 +61,35 @@ def main() -> None:
             pcfg = PreprocessConfig(**{**pcfg.__dict__, "size": args.size})
             p = prepare(img, pcfg)
             w, parts = importance(p)
-            g = solve_greedy(p.target, pins, GreedyConfig(opacity=op),
-                             weights=w if use_w else None, progress=False)
+            g = solve_greedy(
+                p.target,
+                pins,
+                GreedyConfig(opacity=op),
+                weights=w if use_w else None,
+                progress=False,
+            )
             r = render_sequence(g.sequence, pins, p.target.shape, op).image()
             m = evaluate(p.plain, r, p.mask, sigmas=(2, 4), roi=parts["face_roi"])
-            rows.append({"image": name, "variant": vname, "faces": len(p.faces),
-                         "lines": len(g.sequence) - 1, "time_s": round(g.elapsed_s, 2),
-                         "ssim_s2": m["ssim_s2"], "ssim_s4": m["ssim_s4"],
-                         "psnr_s2": m["psnr_s2"],
-                         "face_ssim_s2": m.get("ssim_roi_s2", ""),
-                         "face_psnr_s2": m.get("psnr_roi_s2", "")})
+            rows.append(
+                {
+                    "image": name,
+                    "variant": vname,
+                    "faces": len(p.faces),
+                    "lines": len(g.sequence) - 1,
+                    "time_s": round(g.elapsed_s, 2),
+                    "ssim_s2": m["ssim_s2"],
+                    "ssim_s4": m["ssim_s4"],
+                    "psnr_s2": m["psnr_s2"],
+                    "face_ssim_s2": m.get("ssim_roi_s2", ""),
+                    "face_psnr_s2": m.get("psnr_roi_s2", ""),
+                }
+            )
             tiles.append(np.vstack([p.target, r]))
         fig = (np.hstack(tiles) * 255 + 0.5).clip(0, 255).astype(np.uint8)
-        cv2.imwrite(str(out / f"{name}.png"),
-                    cv2.resize(fig, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA))
+        cv2.imwrite(
+            str(out / f"{name}.png"),
+            cv2.resize(fig, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA),
+        )
         print(f"{name}: done")
 
     with open(out / "results.csv", "w", newline="") as f:

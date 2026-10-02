@@ -27,9 +27,11 @@ KEYS = ("ssim_s0", "ssim_s1", "ssim_s2", "ssim_s4", "psnr_s0", "psnr_s2", "psnr_
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("images", nargs="*",
-                    default=["sample:camera", "sample:astronaut", "sample:coffee",
-                             "sample:chelsea"])
+    ap.add_argument(
+        "images",
+        nargs="*",
+        default=["sample:camera", "sample:astronaut", "sample:coffee", "sample:chelsea"],
+    )
     ap.add_argument("--size", type=int, default=600)
     ap.add_argument("--pins", type=int, default=256)
     ap.add_argument("--opacity", type=float, default=0.2)
@@ -40,8 +42,9 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     pins = make_pins("circle", args.pins, args.size)
     op = args.opacity
-    solve_greedy(np.ones((args.size, args.size)), pins, GreedyConfig(max_lines=1),
-                 progress=False)  # JIT warm-up, excluded from timings
+    solve_greedy(
+        np.ones((args.size, args.size)), pins, GreedyConfig(max_lines=1), progress=False
+    )  # JIT warm-up, excluded from timings
 
     rows = []
     for src in args.images:
@@ -50,26 +53,35 @@ def main() -> None:
         target, mask = preprocess(load_image(src), PreprocessConfig.legacy(size=args.size))
         save_gray(out / f"{name}_target.png", target)
 
-        def record(method, res, extra=""):
+        def record(method, res, extra="", target=target, mask=mask, name=name):
             img = render_sequence(res.sequence, pins, target.shape, op).image()
             save_gray(out / f"{name}_{method}.png", img)
             m = evaluate(target, img, mask)
-            rows.append({"image": name, "method": method, "lines": len(res.sequence) - 1,
-                         "time_s": round(res.elapsed_s, 2), "note": extra,
-                         **{k: m[k] for k in KEYS}})
+            rows.append(
+                {
+                    "image": name,
+                    "method": method,
+                    "lines": len(res.sequence) - 1,
+                    "time_s": round(res.elapsed_s, 2),
+                    "note": extra,
+                    **{k: m[k] for k in KEYS},
+                }
+            )
             return m
 
         g = solve_greedy(target, pins, GreedyConfig(opacity=op), progress=False)
         record("greedy_pixel", g, "auto line count")
-        gb = solve_greedy(target, pins, GreedyConfig(opacity=op, objective="blur",
-                                                     blur_sigma=1.0), progress=False)
+        gb = solve_greedy(
+            target, pins, GreedyConfig(opacity=op, objective="blur", blur_sigma=1.0), progress=False
+        )
         record("greedy_blur1", gb, "auto line count")
 
         n = len(g.sequence) - 1
         best = None
         for ls in (0.05, 0.1, 0.2):
-            b = solve_baseline(target, pins, BaselineConfig(n_lines=n, line_strength=ls),
-                               progress=False)
+            b = solve_baseline(
+                target, pins, BaselineConfig(n_lines=n, line_strength=ls), progress=False
+            )
             img = render_sequence(b.sequence, pins, target.shape, op).image()
             s2 = evaluate(target, img, mask, sigmas=(2,))["ssim_s2"]
             if best is None or s2 > best[0]:

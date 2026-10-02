@@ -60,4 +60,6 @@ The milestone log with results and findings is in [docs/milestones/](docs/milest
 
 ```sh
 uv run pytest
+uv run python tools/ruff.py check          # lint (falls back to WSL if Windows blocks ruff.exe)
+uv run python tools/ruff.py format --check
 ```

@@ -42,8 +42,9 @@ def render_sequence(sequence: Sequence[int], pins: np.ndarray, shape, opacity: f
     return canvas
 
 
-def to_svg(sequence: Sequence[int], pins: np.ndarray, size: int, opacity: float,
-           stroke_px: float = 1.0) -> str:
+def to_svg(
+    sequence: Sequence[int], pins: np.ndarray, size: int, opacity: float, stroke_px: float = 1.0
+) -> str:
     pts = " ".join(f"{pins[i][0]:.2f},{pins[i][1]:.2f}" for i in sequence)
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" '

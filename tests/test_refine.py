@@ -35,8 +35,7 @@ def test_refine_fixes_a_bad_path(pins):
     t = np.ones((120, 120))
     t[:, 56:64] = 0.0
     bad = [0, 32, 16, 48, 0, 32]  # 0->32 is the band; 16<->48 are horizontal, mostly wasted
-    seq, st = refine(t, pins, bad, 0.4, min_gap=6, progress=False,
-                     cfg=RefineConfig(sweeps=3))
+    seq, st = refine(t, pins, bad, 0.4, min_gap=6, progress=False, cfg=RefineConfig(sweeps=3))
     assert st["e_end"] < st["e_start"]
     assert _err(t, seq, pins, 0.4) < _err(t, bad, pins, 0.4)
     _valid(seq, len(pins), 6, 2)
@@ -53,8 +52,9 @@ def test_refine_respects_weights(pins, target):
 
 def test_refine_without_insert_never_adds_lines(pins, target):
     g = solve_greedy(target, pins, GreedyConfig(min_gap=6), progress=False)
-    seq, _ = refine(target, pins, g.sequence, 0.2, min_gap=6, progress=False,
-                    cfg=RefineConfig(insert=False))
+    seq, _ = refine(
+        target, pins, g.sequence, 0.2, min_gap=6, progress=False, cfg=RefineConfig(insert=False)
+    )
     assert len(seq) <= len(g.sequence)
 
 

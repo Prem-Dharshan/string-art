@@ -1,6 +1,6 @@
 """Report figures: the pipeline on one photo, and a thread-by-thread build-up strip.
 
-    uv run python experiments/figures_report.py [--image f07_woman_smiling_closeup]
+uv run python experiments/figures_report.py [--image f07_woman_smiling_closeup]
 """
 
 import argparse
@@ -60,15 +60,25 @@ def main():
         if f.landmarks is not None:
             for p in f.landmarks.astype(int):
                 cv2.circle(inp, tuple(p), 5, (40, 40, 230), -1)
-    g = solve_greedy(prep.target, pins, GreedyConfig(opacity=op, min_gap=gap), weights=w,
-                     progress=False)
-    seq, _ = refine(prep.target, pins, g.sequence, op, min_gap=gap, weights=w,
-                    cfg=RefineConfig(sweeps=2), progress=False)
+    g = solve_greedy(
+        prep.target, pins, GreedyConfig(opacity=op, min_gap=gap), weights=w, progress=False
+    )
+    seq, _ = refine(
+        prep.target,
+        pins,
+        g.sequence,
+        op,
+        min_gap=gap,
+        weights=w,
+        cfg=RefineConfig(sweeps=2),
+        progress=False,
+    )
     gray = render_sequence(seq, pins, prep.target.shape, op).image()
     ct = color_target(prep)
     names = auto_palette(ct, prep.mask, 4)
-    cres = solve_color(ct, pins, palette_rgb(names), ColorConfig(opacity=op, min_gap=gap),
-                       weights=w, names=names)
+    cres = solve_color(
+        ct, pins, palette_rgb(names), ColorConfig(opacity=op, min_gap=gap), weights=w, names=names
+    )
     color = render_steps(cres.steps, pins, (600, 600), palette_rgb(names), op).image()
     imp = cv2.applyColorMap(np.clip(w * 255, 0, 255).astype(np.uint8), cv2.COLORMAP_VIRIDIS)
     tiles = [
@@ -83,8 +93,9 @@ def main():
     print(f"wrote {OUT / 'pipeline.png'} ({len(seq) - 1} lines, palette {names})")
 
     src = viz.Source.gray(seq, pins, prep.target.shape, op)
-    viz.snapshot_grid(src, [250, 750, 1500, 2500, len(seq) - 1], OUT / "buildup.png",
-                      prep.target, prep.mask)
+    viz.snapshot_grid(
+        src, [250, 750, 1500, 2500, len(seq) - 1], OUT / "buildup.png", prep.target, prep.mask
+    )
     print(f"wrote {OUT / 'buildup.png'}")
 
 

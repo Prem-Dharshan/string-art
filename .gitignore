@@ -16,3 +16,4 @@ models/*.yaml
 outputs/
 cache/
 *.npz
+.cache/

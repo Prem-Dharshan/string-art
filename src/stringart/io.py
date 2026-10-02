@@ -35,8 +35,9 @@ def save_sequence(path: Path, *, sequence, pins, size, frame, opacity, meta=None
     Path(path).write_text(json.dumps(doc, indent=1))
 
 
-def save_color_result(path: Path, *, steps, palette, colors, pins, size, frame, opacity,
-                      meta=None) -> None:
+def save_color_result(
+    path: Path, *, steps, palette, colors, pins, size, frame, opacity, meta=None
+) -> None:
     doc = {
         "mode": "color",
         "frame": frame,

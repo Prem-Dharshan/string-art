@@ -45,8 +45,13 @@ def test_color_solver_gains_match_render(pins):
     target[70:90, :, :] = (0.1, 0.2, 0.7)  # blue band
     target += rng.normal(0, 0.01, target.shape)
     names = ["black", "red", "blue"]
-    res = solve_color(target, pins, palette_rgb(names), ColorConfig(opacity=0.3, min_gap=6,
-                                                                    min_run=5), names=names)
+    res = solve_color(
+        target,
+        pins,
+        palette_rgb(names),
+        ColorConfig(opacity=0.3, min_gap=6, min_run=5),
+        names=names,
+    )
     img = render_steps(res.steps, pins, (120, 120), res.colors, 0.3).image()
     drop = _rgb_err(target, np.ones_like(target)) - _rgb_err(target, img)
     assert sum(res.gains) == pytest.approx(drop, rel=1e-6)
@@ -61,8 +66,13 @@ def test_min_run_limits_colour_switches(pins):
     target[20:100, 20:60] = (0.8, 0.1, 0.1)
     target[20:100, 60:100] = (0.1, 0.2, 0.7)
     names = ["red", "blue"]
-    res = solve_color(target, pins, palette_rgb(names), ColorConfig(opacity=0.3, min_gap=6,
-                                                                    min_run=20), names=names)
+    res = solve_color(
+        target,
+        pins,
+        palette_rgb(names),
+        ColorConfig(opacity=0.3, min_gap=6, min_run=20),
+        names=names,
+    )
     ks = [k for k, _, _ in res.steps]
     runs = [1]
     for a, b in zip(ks, ks[1:], strict=False):
@@ -72,7 +82,7 @@ def test_min_run_limits_colour_switches(pins):
             runs.append(1)
     # Runs are at least min_run long, except near the end when a colour has no improving
     # line left (the solver may then switch early rather than stop).
-    assert len(runs) > 1 and all(r >= 20 for r in runs[:-len(names)])
+    assert len(runs) > 1 and all(r >= 20 for r in runs[: -len(names)])
 
 
 def test_auto_palette_finds_dominant_colours():
@@ -94,8 +104,9 @@ def test_baseline_runs_and_orders_light_to_dark(pins):
     target[30:90, 30:90] = (0.85, 0.75, 0.2)
     target[50:70, 50:70] = 0.05
     names = ["black", "yellow"]
-    res = solve_color_baseline(target, pins, palette_rgb(names),
-                               ColorConfig(opacity=0.3, min_gap=6), names=names)
+    res = solve_color_baseline(
+        target, pins, palette_rgb(names), ColorConfig(opacity=0.3, min_gap=6), names=names
+    )
     ks = [k for k, _, _ in res.steps]
     assert ks and ks[0] == 1 and ks[-1] == 0  # yellow first, black on top
 

@@ -16,9 +16,9 @@ def photo():
 
 @pytest.mark.parametrize("n_colors", [1, 2])
 def test_make_art_outputs(photo, n_colors):
-    target, render, gif, mp4, sheet, seq, md = make_art(photo, n_pins=128, frame_mm=500,
-                                                        thread_mm=0.25, n_colors=n_colors,
-                                                        refine_sweeps=1)
+    target, render, gif, mp4, sheet, seq, md = make_art(
+        photo, n_pins=128, frame_mm=500, thread_mm=0.25, n_colors=n_colors, refine_sweeps=1
+    )
     assert render.shape[:2] == (600, 600) and target.shape[:2] == (600, 600)
     for f in (gif, mp4, sheet, seq):
         assert Path(f).is_file() and Path(f).stat().st_size > 0

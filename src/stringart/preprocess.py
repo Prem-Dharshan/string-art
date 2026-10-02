@@ -153,8 +153,7 @@ def prepare(img: np.ndarray, cfg: PreprocessConfig) -> Prepared:
     if cfg.stretch not in ("auto", "on", "off"):
         raise ValueError(f"unknown stretch {cfg.stretch!r}")
     lo, hi = np.percentile(gray[mask], (1, 99))
-    poor = (hi - lo < cfg.stretch_below or lo > cfg.black_point_above
-            or hi < cfg.white_point_below)
+    poor = hi - lo < cfg.stretch_below or lo > cfg.black_point_above or hi < cfg.white_point_below
     if cfg.stretch == "on" or (cfg.stretch == "auto" and poor):
         if hi - lo >= 8:  # leave (near-)flat images alone
             gray = np.clip((gray.astype(np.float64) - lo) * 255.0 / (hi - lo), 0, 255)

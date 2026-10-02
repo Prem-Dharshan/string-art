@@ -35,44 +35,72 @@ def _run(args) -> None:
     if args.thread_mm is not None:
         args.opacity = round(opacity_from_physical(args.thread_mm, args.frame_mm, args.size), 4)
     if not args.legacy_prep and not model_path("yunet").is_file():
-        print("note: face model not found, so no face crop/landmarks. "
-              "Run `stringart fetch-models` to enable them.")
+        print(
+            "note: face model not found, so no face crop/landmarks. "
+            "Run `stringart fetch-models` to enable them."
+        )
     if args.legacy_prep:
-        pcfg = PreprocessConfig.legacy(size=args.size, frame=args.frame, clahe_clip=args.clahe,
-                                       blur_sigma=args.blur)
+        pcfg = PreprocessConfig.legacy(
+            size=args.size, frame=args.frame, clahe_clip=args.clahe, blur_sigma=args.blur
+        )
     else:
-        pcfg = PreprocessConfig(size=args.size, frame=args.frame, clahe_clip=args.clahe,
-                                crop=args.crop, face_zoom=args.face_zoom,
-                                background=args.background)
+        pcfg = PreprocessConfig(
+            size=args.size,
+            frame=args.frame,
+            clahe_clip=args.clahe,
+            crop=args.crop,
+            face_zoom=args.face_zoom,
+            background=args.background,
+        )
     prep = prepare(load_image(args.image), pcfg)
     target, mask = prep.target, prep.mask
-    weights, parts = auto_weights(prep, args.importance,
-                                  ImportanceConfig(floor=args.importance_floor))
+    weights, parts = auto_weights(
+        prep, args.importance, ImportanceConfig(floor=args.importance_floor)
+    )
     pins = make_pins(args.frame, args.pins, args.size)
     if args.colors > 1 or args.palette:
         _run_color(args, prep, pcfg, weights, parts, pins)
         return
     if args.solver == "baseline":
-        scfg = BaselineConfig(n_lines=args.lines or 3000, line_strength=args.line_strength,
-                              min_gap=args.min_gap, n_candidates=args.candidates,
-                              darkness_penalty=args.darkness_penalty, seed=args.seed)
+        scfg = BaselineConfig(
+            n_lines=args.lines or 3000,
+            line_strength=args.line_strength,
+            min_gap=args.min_gap,
+            n_candidates=args.candidates,
+            darkness_penalty=args.darkness_penalty,
+            seed=args.seed,
+        )
         res = solve_baseline(target, pins, scfg, weights=weights, progress=not args.quiet)
     else:
-        scfg = GreedyConfig(max_lines=args.lines or 8000, opacity=args.opacity,
-                            min_gap=args.min_gap, max_repeats=args.max_repeats,
-                            objective=args.objective, blur_sigma=args.blur_sigma)
+        scfg = GreedyConfig(
+            max_lines=args.lines or 8000,
+            opacity=args.opacity,
+            min_gap=args.min_gap,
+            max_repeats=args.max_repeats,
+            objective=args.objective,
+            blur_sigma=args.blur_sigma,
+        )
         res = solve_greedy(target, pins, scfg, weights=weights, progress=not args.quiet)
     refine_stats = None
     if args.refine > 0:
         res.sequence, refine_stats = refine(
-            target, pins, res.sequence, args.opacity, min_gap=args.min_gap,
-            max_repeats=args.max_repeats, weights=weights, cfg=RefineConfig(sweeps=args.refine),
-            progress=not args.quiet)
+            target,
+            pins,
+            res.sequence,
+            args.opacity,
+            min_gap=args.min_gap,
+            max_repeats=args.max_repeats,
+            weights=weights,
+            cfg=RefineConfig(sweeps=args.refine),
+            progress=not args.quiet,
+        )
         res.elapsed_s += refine_stats["elapsed_s"]
     render = render_sequence(res.sequence, pins, target.shape, args.opacity).image()
     roi = parts["face_roi"]
-    metrics = {"vs_target": evaluate(target, render, mask, roi=roi),
-               "vs_photo": evaluate(prep.plain, render, mask, roi=roi)}
+    metrics = {
+        "vs_target": evaluate(target, render, mask, roi=roi),
+        "vs_photo": evaluate(prep.plain, render, mask, roi=roi),
+    }
 
     stem = Path(args.image.split(":", 1)[-1]).stem
     out = Path(args.out) if args.out else Path("outputs") / f"{stem}_{args.solver}"
@@ -83,19 +111,37 @@ def _run(args) -> None:
         save_gray(out / "importance.png", weights)
     (out / "render.svg").write_text(to_svg(res.sequence, pins, args.size, args.opacity))
     (out / "instructions.txt").write_text(
-        instructions(res.sequence, pins, args.size, args.frame, args.frame_mm))
-    meta = {"image": args.image, "solver": args.solver, "elapsed_s": round(res.elapsed_s, 3),
-            "faces": len(prep.faces), "crop_xyside": list(prep.crop),
-            "thread_length_m": (round(thread_length_mm(res.sequence, pins, args.size,
-                                                       args.frame_mm) / 1000, 2)
-                                if args.frame_mm else None),
-            "preprocess": asdict(pcfg), "solver_config": asdict(scfg), "refine": refine_stats,
-            "metrics": metrics}
-    save_sequence(out / "sequence.json", sequence=res.sequence, pins=pins, size=args.size,
-                  frame=args.frame, opacity=args.opacity, meta=meta)
+        instructions(res.sequence, pins, args.size, args.frame, args.frame_mm)
+    )
+    meta = {
+        "image": args.image,
+        "solver": args.solver,
+        "elapsed_s": round(res.elapsed_s, 3),
+        "faces": len(prep.faces),
+        "crop_xyside": list(prep.crop),
+        "thread_length_m": (
+            round(thread_length_mm(res.sequence, pins, args.size, args.frame_mm) / 1000, 2)
+            if args.frame_mm
+            else None
+        ),
+        "preprocess": asdict(pcfg),
+        "solver_config": asdict(scfg),
+        "refine": refine_stats,
+        "metrics": metrics,
+    }
+    save_sequence(
+        out / "sequence.json",
+        sequence=res.sequence,
+        pins=pins,
+        size=args.size,
+        frame=args.frame,
+        opacity=args.opacity,
+        meta=meta,
+    )
     (out / "metrics.json").write_text(json.dumps(meta, indent=2))
-    print(f"{len(res.sequence) - 1} lines in {res.elapsed_s:.2f}s, {len(prep.faces)} face(s) "
-          f"-> {out}")
+    print(
+        f"{len(res.sequence) - 1} lines in {res.elapsed_s:.2f}s, {len(prep.faces)} face(s) -> {out}"
+    )
     for name, m in metrics.items():
         print(f"  {name}: " + "  ".join(f"{k}={v}" for k, v in m.items() if "s0" not in k))
     if args.viz:
@@ -115,12 +161,21 @@ def _run_color(args, prep, pcfg, weights, parts, pins) -> None:
     )
 
     target = color_target(prep, clahe_clip=args.clahe)
-    names = ([n.strip() for n in args.palette.split(",")] if args.palette
-             else auto_palette(target, prep.mask, args.colors))
+    names = (
+        [n.strip() for n in args.palette.split(",")]
+        if args.palette
+        else auto_palette(target, prep.mask, args.colors)
+    )
     colors = palette_rgb(names)
-    ccfg = ColorConfig(n_colors=len(names), palette=names, opacity=args.opacity,
-                       max_lines=args.lines or 12000, min_gap=args.min_gap,
-                       max_repeats=args.max_repeats, min_run=args.min_run)
+    ccfg = ColorConfig(
+        n_colors=len(names),
+        palette=names,
+        opacity=args.opacity,
+        max_lines=args.lines or 12000,
+        min_gap=args.min_gap,
+        max_repeats=args.max_repeats,
+        min_run=args.min_run,
+    )
     if args.solver == "baseline":
         res = solve_color_baseline(target, pins, colors, ccfg, names=names)
     else:
@@ -135,24 +190,44 @@ def _run_color(args, prep, pcfg, weights, parts, pins) -> None:
     save_rgb(out / "render.png", render)
     (out / "instructions.txt").write_text(
         color_instructions(res.steps, names, pins, args.size, args.frame, args.frame_mm),
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     switches = sum(1 for a, b in zip(res.steps, res.steps[1:], strict=False) if a[0] != b[0])
-    meta = {"image": args.image, "solver": args.solver, "elapsed_s": round(res.elapsed_s, 3),
-            "palette": names, "lines_per_colour": {n: sum(1 for k, _, _ in res.steps
-                                                          if names[k] == n) for n in names},
-            "colour_switches": switches, "faces": len(prep.faces),
-            "preprocess": asdict(pcfg), "colour_config": asdict(ccfg), "metrics": metrics}
-    save_color_result(out / "sequence.json", steps=res.steps, palette=names, colors=colors,
-                      pins=pins, size=args.size, frame=args.frame, opacity=args.opacity,
-                      meta=meta)
+    meta = {
+        "image": args.image,
+        "solver": args.solver,
+        "elapsed_s": round(res.elapsed_s, 3),
+        "palette": names,
+        "lines_per_colour": {n: sum(1 for k, _, _ in res.steps if names[k] == n) for n in names},
+        "colour_switches": switches,
+        "faces": len(prep.faces),
+        "preprocess": asdict(pcfg),
+        "colour_config": asdict(ccfg),
+        "metrics": metrics,
+    }
+    save_color_result(
+        out / "sequence.json",
+        steps=res.steps,
+        palette=names,
+        colors=colors,
+        pins=pins,
+        size=args.size,
+        frame=args.frame,
+        opacity=args.opacity,
+        meta=meta,
+    )
     (out / "metrics.json").write_text(json.dumps(meta, indent=2))
     per = ", ".join(f"{n} {c}" for n, c in meta["lines_per_colour"].items())
-    print(f"{len(res.steps)} lines ({per}), {switches} spool switches, "
-          f"{res.elapsed_s:.2f}s -> {out}")
+    print(
+        f"{len(res.steps)} lines ({per}), {switches} spool switches, {res.elapsed_s:.2f}s -> {out}"
+    )
     print("  " + "  ".join(f"{k}={v}" for k, v in metrics.items()))
     if args.viz:
-        viz.play(viz.Source.color(res.steps, pins, target.shape[:2], colors, args.opacity,
-                                  names), target, prep.mask)
+        viz.play(
+            viz.Source.color(res.steps, pins, target.shape[:2], colors, args.opacity, names),
+            target,
+            prep.mask,
+        )
 
 
 def _viz(args) -> None:
@@ -168,8 +243,9 @@ def _viz(args) -> None:
     shape = (doc["size"], doc["size"])
     opacity = args.opacity or doc["opacity"]
     if color:
-        source = viz.Source.color(doc["steps"], doc["pins"], shape, doc["colors"], opacity,
-                                  doc["palette"])
+        source = viz.Source.color(
+            doc["steps"], doc["pins"], shape, doc["colors"], opacity, doc["palette"]
+        )
     else:
         source = viz.Source.gray(doc["sequence"], doc["pins"], shape, opacity)
 
@@ -180,8 +256,14 @@ def _viz(args) -> None:
         print(f"wrote {path}")
         did_file_output = True
     for out in args.save or []:
-        path = viz.export(source, Path(out), lines_per_frame=args.step, fps=args.fps,
-                          duration_s=args.duration, scale=args.scale)
+        path = viz.export(
+            source,
+            Path(out),
+            lines_per_frame=args.step,
+            fps=args.fps,
+            duration_s=args.duration,
+            scale=args.scale,
+        )
         print(f"wrote {path}")
         did_file_output = True
     if not did_file_output or args.show:
@@ -199,43 +281,79 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--size", type=int, default=600, help="canvas size in px")
     r.add_argument("--frame", choices=["circle", "rect"], default="circle")
     r.add_argument("--pins", type=int, default=256)
-    r.add_argument("--lines", type=int, default=None,
-                   help="baseline: line count (default 3000); greedy: cap (default 8000)")
+    r.add_argument(
+        "--lines",
+        type=int,
+        default=None,
+        help="baseline: line count (default 3000); greedy: cap (default 8000)",
+    )
     r.add_argument("--min-gap", type=int, default=10)
-    r.add_argument("--opacity", type=float, default=0.2,
-                   help="thread opacity per pixel (solver model and rendering)")
+    r.add_argument(
+        "--opacity",
+        type=float,
+        default=0.2,
+        help="thread opacity per pixel (solver model and rendering)",
+    )
     r.add_argument("--thread-mm", type=float, help="thread width; with --frame-mm sets opacity")
-    r.add_argument("--frame-mm", type=float,
-                   help="frame diameter/side in mm (thread length in instructions.txt)")
+    r.add_argument(
+        "--frame-mm",
+        type=float,
+        help="frame diameter/side in mm (thread length in instructions.txt)",
+    )
     g = r.add_argument_group("greedy solver")
     g.add_argument("--objective", choices=["pixel", "blur"], default="pixel")
     g.add_argument("--blur-sigma", type=float, default=1.5, help="viewing blur for 'blur'")
     g.add_argument("--max-repeats", type=int, default=2, help="max uses of one chord")
-    g.add_argument("--refine", type=int, default=2,
-                   help="refinement sweeps after greedy (delete/reroute/insert pins; 0 = off)")
+    g.add_argument(
+        "--refine",
+        type=int,
+        default=2,
+        help="refinement sweeps after greedy (delete/reroute/insert pins; 0 = off)",
+    )
     c = r.add_argument_group("colour")
-    c.add_argument("--colors", type=int, default=1,
-                   help="number of thread colours (>1 = colour mode, palette by Lab k-means)")
+    c.add_argument(
+        "--colors",
+        type=int,
+        default=1,
+        help="number of thread colours (>1 = colour mode, palette by Lab k-means)",
+    )
     c.add_argument("--palette", help="explicit thread colours, e.g. black,red,tan,blue")
-    c.add_argument("--min-run", type=int, default=100,
-                   help="colour mode: lines before switching spool")
+    c.add_argument(
+        "--min-run", type=int, default=100, help="colour mode: lines before switching spool"
+    )
     b = r.add_argument_group("baseline solver")
     b.add_argument("--line-strength", type=float, default=0.1)
     b.add_argument("--candidates", type=int, default=None, help="random candidates per step")
     b.add_argument("--darkness-penalty", type=float, default=0.0)
     pp = r.add_argument_group("preprocessing / importance")
-    pp.add_argument("--crop", choices=["face", "center"], default="face",
-                    help="centre the frame on the largest face (falls back to centre)")
+    pp.add_argument(
+        "--crop",
+        choices=["face", "center"],
+        default="face",
+        help="centre the frame on the largest face (falls back to centre)",
+    )
     pp.add_argument("--face-zoom", type=float, default=1.8, help="crop side / face height")
-    pp.add_argument("--background", choices=["none", "fade"], default="none",
-                    help="fade: lighten the background with GrabCut (only when a face is found)")
-    pp.add_argument("--importance", choices=["auto", "on", "off"], default="auto",
-                    help="error weights from face/edges/saliency (auto: only if a face is found)")
-    pp.add_argument("--importance-floor", type=float, default=0.1,
-                    help="weight of unimportant regions (0..1)")
+    pp.add_argument(
+        "--background",
+        choices=["none", "fade"],
+        default="none",
+        help="fade: lighten the background with GrabCut (only when a face is found)",
+    )
+    pp.add_argument(
+        "--importance",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help="error weights from face/edges/saliency (auto: only if a face is found)",
+    )
+    pp.add_argument(
+        "--importance-floor", type=float, default=0.1, help="weight of unimportant regions (0..1)"
+    )
     pp.add_argument("--clahe", type=float, default=2.0, help="CLAHE clip limit (0 = off)")
-    pp.add_argument("--legacy-prep", action="store_true",
-                    help="M1/M2 chain: centre crop, CLAHE, Gaussian (--blur)")
+    pp.add_argument(
+        "--legacy-prep",
+        action="store_true",
+        help="M1/M2 chain: centre crop, CLAHE, Gaussian (--blur)",
+    )
     pp.add_argument("--blur", type=float, default=1.0, help="Gaussian sigma for --legacy-prep")
     r.add_argument("--seed", type=int, default=0)
     r.add_argument("--viz", action="store_true", help="open the visualizer when done")

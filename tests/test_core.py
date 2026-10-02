@@ -27,8 +27,9 @@ def test_pin_distance_wraps():
     assert pin_distance(10, 138, 256) == 128
 
 
-@pytest.mark.parametrize("p0,p1", [((3, 7), (90, 40)), ((10, 90), (40, 2)), ((50, 5), (50, 95)),
-                                   ((0, 0), (99, 99))])
+@pytest.mark.parametrize(
+    "p0,p1", [((3, 7), (90, 40)), ((10, 90), (40, 2)), ((50, 5), (50, 95)), ((0, 0), (99, 99))]
+)
 def test_aa_line_unit_coverage_per_step(p0, p1):
     ys, xs, w = aa_line(p0, p1, (100, 100))
     steep = abs(p1[1] - p0[1]) > abs(p1[0] - p0[0])

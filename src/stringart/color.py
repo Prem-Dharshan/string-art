@@ -23,15 +23,25 @@ import cv2
 import numpy as np
 from numba import njit, prange
 
-from .preprocess import PreprocessConfig, Prepared, prepare
+from .preprocess import Prepared, PreprocessConfig, prepare
 
 # Common sewing / embroidery thread colours (sRGB). Black and white are always available.
 THREADS = {
-    "black": (0, 0, 0), "white": (255, 255, 255), "grey": (128, 128, 128),
-    "red": (196, 30, 45), "maroon": (110, 20, 35), "orange": (235, 110, 30),
-    "yellow": (245, 200, 30), "tan": (210, 160, 120), "brown": (110, 70, 40),
-    "green": (40, 140, 60), "dark_green": (20, 75, 40), "cyan": (40, 170, 200),
-    "blue": (30, 80, 170), "navy": (20, 30, 80), "purple": (100, 50, 140),
+    "black": (0, 0, 0),
+    "white": (255, 255, 255),
+    "grey": (128, 128, 128),
+    "red": (196, 30, 45),
+    "maroon": (110, 20, 35),
+    "orange": (235, 110, 30),
+    "yellow": (245, 200, 30),
+    "tan": (210, 160, 120),
+    "brown": (110, 70, 40),
+    "green": (40, 140, 60),
+    "dark_green": (20, 75, 40),
+    "cyan": (40, 170, 200),
+    "blue": (30, 80, 170),
+    "navy": (20, 30, 80),
+    "purple": (100, 50, 140),
     "pink": (235, 130, 170),
 }
 
@@ -70,8 +80,7 @@ def color_target(prep: Prepared, clahe_clip: float = 2.0) -> np.ndarray:
     """RGB target in [0, 1] from the prepared crop: CLAHE on Lab lightness, white outside."""
     lab = cv2.cvtColor(prep.canvas_bgr, cv2.COLOR_BGR2LAB)
     if clahe_clip > 0:
-        lab[..., 0] = cv2.createCLAHE(clipLimit=clahe_clip, tileGridSize=(8, 8)).apply(
-            lab[..., 0])
+        lab[..., 0] = cv2.createCLAHE(clipLimit=clahe_clip, tileGridSize=(8, 8)).apply(lab[..., 0])
     rgb = cv2.cvtColor(cv2.cvtColor(lab, cv2.COLOR_LAB2BGR), cv2.COLOR_BGR2RGB)
     rgb = rgb.astype(np.float64) / 255.0
     rgb[~prep.mask] = 1.0
@@ -80,11 +89,13 @@ def color_target(prep: Prepared, clahe_clip: float = 2.0) -> np.ndarray:
 
 def _lab(rgb01: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(rgb01.astype(np.float32).reshape(-1, 1, 3), cv2.COLOR_RGB2LAB).reshape(
-        -1, 3)
+        -1, 3
+    )
 
 
-def auto_palette(target_rgb: np.ndarray, mask: np.ndarray, n_colors: int,
-                 seed: int = 0, space: str = "lab") -> list[str]:
+def auto_palette(
+    target_rgb: np.ndarray, mask: np.ndarray, n_colors: int, seed: int = 0, space: str = "lab"
+) -> list[str]:
     """k-means on the image, each centre snapped to the nearest thread colour. `space="lab"`
     (perceptual, default) or `"rgb"` (as in prior work, for comparison). Black is always
     included; white never is (on a white board it can only lighten threads, and the board
@@ -101,8 +112,7 @@ def auto_palette(target_rgb: np.ndarray, mask: np.ndarray, n_colors: int,
     cv2.setRNGSeed(seed)
     crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.5)
     k = min(max(n_colors + 1, 2), len(px))  # +1: the white board usually takes one centre
-    _, labels, centers = cv2.kmeans(px.astype(np.float32), k, None, crit, 3,
-                                    cv2.KMEANS_PP_CENTERS)
+    _, labels, centers = cv2.kmeans(px.astype(np.float32), k, None, crit, 3, cv2.KMEANS_PP_CENTERS)
     order = np.argsort(-np.bincount(labels.ravel(), minlength=k))  # most common first
     chosen = ["black"]
     for c in centers[order]:
@@ -206,8 +216,20 @@ def _score_rgb(pins, cur, prev, counts, min_gap, max_repeats, h, wd, C, T, w, al
         if min(gap, n - gap) < min_gap or j == prev or counts[cur, j] >= max_repeats:
             out[j] = -np.inf
         else:
-            out[j] = _walk_rgb(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, C, T,
-                               w, alpha, col, False)
+            out[j] = _walk_rgb(
+                pins[cur, 0],
+                pins[cur, 1],
+                pins[j, 0],
+                pins[j, 1],
+                h,
+                wd,
+                C,
+                T,
+                w,
+                alpha,
+                col,
+                False,
+            )
 
 
 @njit(cache=True)
@@ -220,8 +242,9 @@ def _best(out):
 
 
 @njit(cache=True)
-def _solve_rgb(pins, h, wd, C, T, w, alpha, colors, max_lines, min_gap, max_repeats, min_run,
-               starts):
+def _solve_rgb(
+    pins, h, wd, C, T, w, alpha, colors, max_lines, min_gap, max_repeats, min_run, starts
+):
     n, K = pins.shape[0], colors.shape[0]
     counts = np.zeros((K, n, n), dtype=np.int32)
     cur = starts.copy()
@@ -233,21 +256,61 @@ def _solve_rgb(pins, h, wd, C, T, w, alpha, colors, max_lines, min_gap, max_repe
     while s < max_lines:
         best, bk, bj = -np.inf, -1, -1
         if active >= 0 and run < min_run:
-            _score_rgb(pins, cur[active], prev[active], counts[active], min_gap, max_repeats,
-                       h, wd, C, T, w, alpha, colors[active], out)
+            _score_rgb(
+                pins,
+                cur[active],
+                prev[active],
+                counts[active],
+                min_gap,
+                max_repeats,
+                h,
+                wd,
+                C,
+                T,
+                w,
+                alpha,
+                colors[active],
+                out,
+            )
             best, bj = _best(out)
             bk = active
         if best <= 0.0:  # run finished (or exhausted): consider every colour
             for k in range(K):
-                _score_rgb(pins, cur[k], prev[k], counts[k], min_gap, max_repeats, h, wd, C, T,
-                           w, alpha, colors[k], out)
+                _score_rgb(
+                    pins,
+                    cur[k],
+                    prev[k],
+                    counts[k],
+                    min_gap,
+                    max_repeats,
+                    h,
+                    wd,
+                    C,
+                    T,
+                    w,
+                    alpha,
+                    colors[k],
+                    out,
+                )
                 g, j = _best(out)
                 if g > best:
                     best, bk, bj = g, k, j
         if bj < 0 or best <= 0.0:
             break
-        _walk_rgb(pins[cur[bk], 0], pins[cur[bk], 1], pins[bj, 0], pins[bj, 1], h, wd, C, T, w,
-                  alpha, colors[bk], True)
+        _walk_rgb(
+            pins[cur[bk], 0],
+            pins[cur[bk], 1],
+            pins[bj, 0],
+            pins[bj, 1],
+            h,
+            wd,
+            C,
+            T,
+            w,
+            alpha,
+            colors[bk],
+            True,
+        )
         counts[bk, cur[bk], bj] += 1
         counts[bk, bj, cur[bk]] += 1
         steps[s, 0], steps[s, 1], steps[s, 2] = bk, cur[bk], bj
@@ -259,26 +322,47 @@ def _solve_rgb(pins, h, wd, C, T, w, alpha, colors, max_lines, min_gap, max_repe
     return steps[:s], gains[:s]
 
 
-def solve_color(target_rgb, pins, colors, cfg: ColorConfig, weights=None,
-                names=None) -> ColorResult:
+def solve_color(
+    target_rgb, pins, colors, cfg: ColorConfig, weights=None, names=None
+) -> ColorResult:
     h, wd, _ = target_rgb.shape
     if not 0 < cfg.opacity <= 1:
         raise ValueError(f"opacity must be in (0, 1], got {cfg.opacity}")
     T = np.ascontiguousarray(target_rgb.reshape(-1, 3), dtype=np.float64)
     C = np.empty_like(T)
     C[:] = np.asarray(cfg.background, dtype=np.float64) / 255.0
-    w = (np.ones(h * wd) if weights is None
-         else np.ascontiguousarray(np.asarray(weights, np.float64).ravel()))
+    w = (
+        np.ones(h * wd)
+        if weights is None
+        else np.ascontiguousarray(np.asarray(weights, np.float64).ravel())
+    )
     pins = np.ascontiguousarray(pins, dtype=np.float64)
     colors = np.ascontiguousarray(colors, dtype=np.float64)
     n, K = len(pins), len(colors)
     starts = (np.arange(K) * n // max(K, 1)).astype(np.int64)  # spread the start pins
     t0 = time.perf_counter()
-    steps, gains = _solve_rgb(pins, h, wd, C, T, w, float(cfg.opacity), colors, cfg.max_lines,
-                              cfg.min_gap, cfg.max_repeats, cfg.min_run, starts)
-    return ColorResult(names or [f"c{k}" for k in range(K)], colors,
-                       [tuple(int(v) for v in s) for s in steps], gains.tolist(),
-                       time.perf_counter() - t0)
+    steps, gains = _solve_rgb(
+        pins,
+        h,
+        wd,
+        C,
+        T,
+        w,
+        float(cfg.opacity),
+        colors,
+        cfg.max_lines,
+        cfg.min_gap,
+        cfg.max_repeats,
+        cfg.min_run,
+        starts,
+    )
+    return ColorResult(
+        names or [f"c{k}" for k in range(K)],
+        colors,
+        [tuple(int(v) for v in s) for s in steps],
+        gains.tolist(),
+        time.perf_counter() - t0,
+    )
 
 
 # ------------------------------------------------------------------ LessWrong-style baseline
@@ -316,8 +400,9 @@ def _fs(img, pal, h, wd):
     return idx
 
 
-def solve_color_baseline(target_rgb, pins, colors, cfg: ColorConfig, names=None,
-                         blur_sigma: float = 1.5) -> ColorResult:
+def solve_color_baseline(
+    target_rgb, pins, colors, cfg: ColorConfig, names=None, blur_sigma: float = 1.5
+) -> ColorResult:
     """Dither into palette + white board; per colour, greedy on its blurred dither mask
     (independent of the other colours); build order light -> dark (LessWrong's advice)."""
     from .solver.greedy import GreedyConfig, solve_greedy
@@ -327,16 +412,24 @@ def solve_color_baseline(target_rgb, pins, colors, cfg: ColorConfig, names=None,
     idx = dither(target_rgb, np.vstack([colors, bg]))
     lum = colors @ np.array([0.299, 0.587, 0.114])
     steps, gains = [], []
-    gcfg = GreedyConfig(opacity=cfg.opacity, min_gap=cfg.min_gap, max_repeats=cfg.max_repeats,
-                        max_lines=cfg.max_lines)
+    gcfg = GreedyConfig(
+        opacity=cfg.opacity,
+        min_gap=cfg.min_gap,
+        max_repeats=cfg.max_repeats,
+        max_lines=cfg.max_lines,
+    )
     for k in np.argsort(-lum):  # lightest first, darkest on top
         mask = cv2.GaussianBlur((idx == k).astype(np.float64), (0, 0), blur_sigma)
         res = solve_greedy(1.0 - mask, pins, gcfg, progress=False)
-        steps += [(int(k), a, b) for a, b in zip(res.sequence[:-1], res.sequence[1:],
-                                                 strict=True)]
+        steps += [(int(k), a, b) for a, b in zip(res.sequence[:-1], res.sequence[1:], strict=True)]
         gains += res.scores
-    return ColorResult(names or [f"c{k}" for k in range(len(colors))], colors, steps, gains,
-                       time.perf_counter() - t0)
+    return ColorResult(
+        names or [f"c{k}" for k in range(len(colors))],
+        colors,
+        steps,
+        gains,
+        time.perf_counter() - t0,
+    )
 
 
 # ------------------------------------------------------------------ metrics
@@ -358,8 +451,14 @@ def color_metrics(target_rgb, render_rgb, mask, sigmas=(2, 4)) -> dict[str, floa
     return out
 
 
-def prepare_color(img_bgr, size=600, frame="circle", n_colors=4, palette=None,
-                  pcfg: PreprocessConfig | None = None):
+def prepare_color(
+    img_bgr,
+    size=600,
+    frame="circle",
+    n_colors=4,
+    palette=None,
+    pcfg: PreprocessConfig | None = None,
+):
     """Convenience: crop/prepare -> colour target -> palette names and RGB."""
     prep = prepare(img_bgr, pcfg or PreprocessConfig(size=size, frame=frame))
     target = color_target(prep)

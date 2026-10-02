@@ -21,8 +21,14 @@ class Face:
         """Map into another frame: p' = (p - (dx, dy)) * scale."""
         off = np.array([dx, dy])
         lm = None if self.landmarks is None else (self.landmarks - off) * scale
-        box = np.array([(self.box[0] - dx) * scale, (self.box[1] - dy) * scale,
-                        self.box[2] * scale, self.box[3] * scale])
+        box = np.array(
+            [
+                (self.box[0] - dx) * scale,
+                (self.box[1] - dy) * scale,
+                self.box[2] * scale,
+                self.box[3] * scale,
+            ]
+        )
         return Face(box, self.score, (self.five - off) * scale, lm)
 
     @property
@@ -49,8 +55,9 @@ def _lbf():
     return fm
 
 
-def detect_faces(img: np.ndarray, score_thresh: float = 0.7, max_side: int = 800,
-                 landmarks: bool = True) -> list[Face]:
+def detect_faces(
+    img: np.ndarray, score_thresh: float = 0.7, max_side: int = 800, landmarks: bool = True
+) -> list[Face]:
     """Faces in a BGR image, largest first. Returns [] when the model is missing."""
     det = _yunet()
     if det is None:

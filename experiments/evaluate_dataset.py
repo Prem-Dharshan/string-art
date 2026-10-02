@@ -41,10 +41,19 @@ from stringart.solver.greedy import GreedyConfig, solve_greedy
 
 ROOT = Path(__file__).resolve().parents[1]
 SIZE, PINS, OPACITY = 600, 256, 0.2
-FACE_SUBSET = ["f01_man_glasses_studio", "f07_woman_smiling_closeup", "f10_older_woman_glasses",
-               "f13_girl_bw_smiling", "f16_elderly_man_pipe_bw"]
-CURVE_SET = ["f07_woman_smiling_closeup", "f16_elderly_man_pipe_bw", "a06_cat_tabby",
-             "o01_lighthouse_striped"]
+FACE_SUBSET = [
+    "f01_man_glasses_studio",
+    "f07_woman_smiling_closeup",
+    "f10_older_woman_glasses",
+    "f13_girl_bw_smiling",
+    "f16_elderly_man_pipe_bw",
+]
+CURVE_SET = [
+    "f07_woman_smiling_closeup",
+    "f16_elderly_man_pipe_bw",
+    "a06_cat_tabby",
+    "o01_lighthouse_striped",
+]
 METHODS = ("A_baseline_published", "B_baseline_equal", "C_greedy_legacy", "D_full")
 
 
@@ -99,15 +108,29 @@ def section_main(items, out: Path, pins) -> list[dict]:
         w_full, _ = auto_weights(full)
 
         runs = {}
-        runs["A_baseline_published"] = (legacy, solve_baseline(
-            legacy.target, pins, BaselineConfig(n_lines=3000, line_strength=0.1), progress=False))
-        runs["C_greedy_legacy"] = (legacy, solve_greedy(
-            legacy.target, pins, GreedyConfig(opacity=OPACITY), progress=False))
+        runs["A_baseline_published"] = (
+            legacy,
+            solve_baseline(
+                legacy.target, pins, BaselineConfig(n_lines=3000, line_strength=0.1), progress=False
+            ),
+        )
+        runs["C_greedy_legacy"] = (
+            legacy,
+            solve_greedy(legacy.target, pins, GreedyConfig(opacity=OPACITY), progress=False),
+        )
         n_c = len(runs["C_greedy_legacy"][1].sequence) - 1
-        runs["B_baseline_equal"] = (legacy, solve_baseline(
-            legacy.target, pins, BaselineConfig(n_lines=n_c, line_strength=0.1), progress=False))
-        runs["D_full"] = (full, solve_greedy(
-            full.target, pins, GreedyConfig(opacity=OPACITY), weights=w_full, progress=False))
+        runs["B_baseline_equal"] = (
+            legacy,
+            solve_baseline(
+                legacy.target, pins, BaselineConfig(n_lines=n_c, line_strength=0.1), progress=False
+            ),
+        )
+        runs["D_full"] = (
+            full,
+            solve_greedy(
+                full.target, pins, GreedyConfig(opacity=OPACITY), weights=w_full, progress=False
+            ),
+        )
 
         # Synthetic exposure faults are scored against the clean photo (the true scene);
         # scoring against the degraded input would penalize correcting the exposure.
@@ -118,23 +141,34 @@ def section_main(items, out: Path, pins) -> list[dict]:
             render = render_sequence(res.sequence, pins, prep.target.shape, OPACITY).image()
             if method in ("A_baseline_published", "D_full"):
                 save_gray(rdir / f"{it['id']}__{method}.png", render)
-            rows.append({"image": it["id"], "category": it["category"], "method": method,
-                         "faces": len(full.faces),
-                         "face_share_centre": round(share_centre, 4),
-                         "face_share_facecrop": round(share_face, 4),
-                         "lines": len(res.sequence) - 1, "time_s": round(res.elapsed_s, 2),
-                         **score(prep, render, roi, ref)})
+            rows.append(
+                {
+                    "image": it["id"],
+                    "category": it["category"],
+                    "method": method,
+                    "faces": len(full.faces),
+                    "face_share_centre": round(share_centre, 4),
+                    "face_share_facecrop": round(share_face, 4),
+                    "lines": len(res.sequence) - 1,
+                    "time_s": round(res.elapsed_s, 2),
+                    **score(prep, render, roi, ref),
+                }
+            )
         save_gray(rdir / f"{it['id']}__plain.png", full.plain)
         save_gray(rdir / f"{it['id']}__plain_centre.png", centre.plain)
-        print(f"main  {it['id']}: " + "  ".join(
-            f"{r['method'][:1]}={r['ssim_s2']}" for r in rows[-4:]), flush=True)
+        print(
+            f"main  {it['id']}: "
+            + "  ".join(f"{r['method'][:1]}={r['ssim_s2']}" for r in rows[-4:]),
+            flush=True,
+        )
     return rows
 
 
 def _clean_reference(clean_bgr, crop, size, mask):
     x0, y0, side = crop
-    c = cv2.resize(clean_bgr[y0:y0 + side, x0:x0 + side], (size, size),
-                   interpolation=cv2.INTER_AREA)
+    c = cv2.resize(
+        clean_bgr[y0 : y0 + side, x0 : x0 + side], (size, size), interpolation=cv2.INTER_AREA
+    )
     ref = cv2.cvtColor(c, cv2.COLOR_BGR2GRAY).astype(np.float64) / 255.0
     ref[~mask] = 1.0
     return ref
@@ -142,10 +176,16 @@ def _clean_reference(clean_bgr, crop, size, mask):
 
 def _robust_row(name, transform, stretch, res, ref, render, prep):
     m = evaluate(ref, render, prep.mask, sigmas=(2, 4), roi=face_roi(prep))
-    return {"image": name, "transform": transform, "stretch": stretch,
-            "lines": len(res.sequence) - 1, "ssim_s2_vs_clean": m["ssim_s2"],
-            "ssim_s4_vs_clean": m["ssim_s4"], "psnr_s2_vs_clean": m["psnr_s2"],
-            "face_ssim_s2_vs_clean": m.get("ssim_roi_s2", "")}
+    return {
+        "image": name,
+        "transform": transform,
+        "stretch": stretch,
+        "lines": len(res.sequence) - 1,
+        "ssim_s2_vs_clean": m["ssim_s2"],
+        "ssim_s4_vs_clean": m["ssim_s4"],
+        "psnr_s2_vs_clean": m["psnr_s2"],
+        "face_ssim_s2_vs_clean": m.get("ssim_roi_s2", ""),
+    }
 
 
 def section_robust(items, out: Path, pins) -> list[dict]:
@@ -155,22 +195,29 @@ def section_robust(items, out: Path, pins) -> list[dict]:
         for stretch in ("auto", "off"):
             prep = prepare(degraded, PreprocessConfig(size=SIZE, stretch=stretch))
             w, _ = auto_weights(prep)
-            res = solve_greedy(prep.target, pins, GreedyConfig(opacity=OPACITY), weights=w,
-                               progress=False)
+            res = solve_greedy(
+                prep.target, pins, GreedyConfig(opacity=OPACITY), weights=w, progress=False
+            )
             render = render_sequence(res.sequence, pins, prep.target.shape, OPACITY).image()
             ref = _clean_reference(clean, prep.crop, SIZE, prep.mask)
             rows.append(_robust_row(it["id"], it["transform"], stretch, res, ref, render, prep))
             save_gray(out / "renders" / f"{it['id']}__stretch_{stretch}.png", render)
-            print(f"robust {it['id']} stretch={stretch}: "
-                  f"ssim2={rows[-1]['ssim_s2_vs_clean']}", flush=True)
+            print(
+                f"robust {it['id']} stretch={stretch}: ssim2={rows[-1]['ssim_s2_vs_clean']}",
+                flush=True,
+            )
     if rows:
         prep = prepare(image("f07_woman_smiling_closeup"), PreprocessConfig(size=SIZE))
         w, _ = auto_weights(prep)
-        res = solve_greedy(prep.target, pins, GreedyConfig(opacity=OPACITY), weights=w,
-                           progress=False)
+        res = solve_greedy(
+            prep.target, pins, GreedyConfig(opacity=OPACITY), weights=w, progress=False
+        )
         render = render_sequence(res.sequence, pins, prep.target.shape, OPACITY).image()
-        rows.append(_robust_row("f07_woman_smiling_closeup", "none (clean)", "auto", res,
-                                prep.plain, render, prep))
+        rows.append(
+            _robust_row(
+                "f07_woman_smiling_closeup", "none (clean)", "auto", res, prep.plain, render, prep
+            )
+        )
     return rows
 
 
@@ -189,17 +236,35 @@ def section_curves(items, out: Path, pins, max_lines=6000) -> list[dict]:
     for it in [i for i in items if i["id"] in CURVE_SET]:
         prep = prepare(image(it["id"]), PreprocessConfig(size=SIZE))
         w, _ = auto_weights(prep)
-        auto = solve_greedy(prep.target, pins, GreedyConfig(opacity=OPACITY), weights=w,
-                            progress=False)
-        greedy = solve_greedy(prep.target, pins, GreedyConfig(
-            opacity=OPACITY, max_lines=max_lines, stop_tol=-np.inf), weights=w, progress=False)
-        base = solve_baseline(prep.target, pins,
-                              BaselineConfig(n_lines=max_lines, line_strength=0.1),
-                              weights=w, progress=False)
+        auto = solve_greedy(
+            prep.target, pins, GreedyConfig(opacity=OPACITY), weights=w, progress=False
+        )
+        greedy = solve_greedy(
+            prep.target,
+            pins,
+            GreedyConfig(opacity=OPACITY, max_lines=max_lines, stop_tol=-np.inf),
+            weights=w,
+            progress=False,
+        )
+        base = solve_baseline(
+            prep.target,
+            pins,
+            BaselineConfig(n_lines=max_lines, line_strength=0.1),
+            weights=w,
+            progress=False,
+        )
         for name, res in (("greedy", greedy), ("baseline", base)):
             for k, s2, p2 in _curve(prep, res.sequence, pins):
-                rows.append({"image": it["id"], "solver": name, "lines": k, "ssim_s2": s2,
-                             "psnr_s2": p2, "auto_stop": len(auto.sequence) - 1})
+                rows.append(
+                    {
+                        "image": it["id"],
+                        "solver": name,
+                        "lines": k,
+                        "ssim_s2": s2,
+                        "psnr_s2": p2,
+                        "auto_stop": len(auto.sequence) - 1,
+                    }
+                )
         print(f"curves {it['id']}: auto-stop at {len(auto.sequence) - 1}", flush=True)
     return rows
 
@@ -215,11 +280,19 @@ def section_sweep(items, out: Path, param: str, values) -> list[dict]:
             op = v if param == "opacity" else OPACITY
             pins = make_pins("circle", n_pins, SIZE)
             gap = max(2, round(10 * n_pins / 256))  # same angular gap as the default
-            res = solve_greedy(prep.target, pins, GreedyConfig(opacity=op, min_gap=gap),
-                               weights=w, progress=False)
+            res = solve_greedy(
+                prep.target, pins, GreedyConfig(opacity=op, min_gap=gap), weights=w, progress=False
+            )
             render = render_sequence(res.sequence, pins, prep.target.shape, op).image()
-            rows.append({"image": it["id"], param: v, "lines": len(res.sequence) - 1,
-                         "time_s": round(res.elapsed_s, 2), **score(prep, render, roi)})
+            rows.append(
+                {
+                    "image": it["id"],
+                    param: v,
+                    "lines": len(res.sequence) - 1,
+                    "time_s": round(res.elapsed_s, 2),
+                    **score(prep, render, roi),
+                }
+            )
         print(f"{param} {it['id']}: done", flush=True)
     return rows
 
@@ -235,13 +308,20 @@ def summarize(out: Path, main_rows, robust_rows, curve_rows, pins_rows, op_rows)
         cats = ["face", "hard", "animal", "object", "all"]
         md += ["## Main comparison: mean ± std (n images)", ""]
         for metric in ("ssim_s2", "ssim_s4", "psnr_s2", "ssim_roi_s2", "lines", "time_s"):
-            md += [f"**{metric}**", "", "| method | " + " | ".join(cats) + " |",
-                   "|---|" + "---|" * len(cats)]
+            md += [
+                f"**{metric}**",
+                "",
+                "| method | " + " | ".join(cats) + " |",
+                "|---|" + "---|" * len(cats),
+            ]
             for meth in METHODS:
                 cells = []
                 for c in cats:
-                    vals = [r[metric] for r in main_rows if r["method"] == meth
-                            and (c == "all" or r["category"] == c)]
+                    vals = [
+                        r[metric]
+                        for r in main_rows
+                        if r["method"] == meth and (c == "all" or r["category"] == c)
+                    ]
                     m, s, n = _mean_std(vals)
                     if n == 0:
                         cells.append("–")
@@ -253,41 +333,67 @@ def summarize(out: Path, main_rows, robust_rows, curve_rows, pins_rows, op_rows)
             md.append("")
         by = {(r["image"], r["method"]): r for r in main_rows}
         imgs = sorted({r["image"] for r in main_rows})
-        md += ["## Paired differences: mean Δ, wins / n", "",
-               "| comparison | Δ SSIM σ2 | wins | Δ face SSIM σ2 | wins |", "|---|---|---|---|---|"]
-        for a, b in (("D_full", "A_baseline_published"), ("D_full", "C_greedy_legacy"),
-                     ("C_greedy_legacy", "B_baseline_equal"),
-                     ("C_greedy_legacy", "A_baseline_published")):
+        md += [
+            "## Paired differences: mean Δ, wins / n",
+            "",
+            "| comparison | Δ SSIM σ2 | wins | Δ face SSIM σ2 | wins |",
+            "|---|---|---|---|---|",
+        ]
+        for a, b in (
+            ("D_full", "A_baseline_published"),
+            ("D_full", "C_greedy_legacy"),
+            ("C_greedy_legacy", "B_baseline_equal"),
+            ("C_greedy_legacy", "A_baseline_published"),
+        ):
             d = [float(by[(i, a)]["ssim_s2"]) - float(by[(i, b)]["ssim_s2"]) for i in imgs]
-            f = [float(by[(i, a)]["ssim_roi_s2"]) - float(by[(i, b)]["ssim_roi_s2"])
-                 for i in imgs if by[(i, a)]["ssim_roi_s2"] != ""]
+            f = [
+                float(by[(i, a)]["ssim_roi_s2"]) - float(by[(i, b)]["ssim_roi_s2"])
+                for i in imgs
+                if by[(i, a)]["ssim_roi_s2"] != ""
+            ]
             fcell = f"{np.mean(f):+.4f} | {sum(x > 0 for x in f)} / {len(f)}" if f else "– | –"
-            md.append(f"| {a} − {b} | {np.mean(d):+.4f} | {sum(x > 0 for x in d)} / {len(d)} | "
-                      f"{fcell} |")
+            md.append(
+                f"| {a} − {b} | {np.mean(d):+.4f} | {sum(x > 0 for x in d)} / {len(d)} | {fcell} |"
+            )
         md.append("")
-        shares = [(float(r["face_share_centre"]), float(r["face_share_facecrop"]))
-                  for r in main_rows if r["method"] == "D_full"
-                  and r["category"] in ("face", "hard")]
+        shares = [
+            (float(r["face_share_centre"]), float(r["face_share_facecrop"]))
+            for r in main_rows
+            if r["method"] == "D_full" and r["category"] in ("face", "hard")
+        ]
         if shares:
             c, f = np.mean(shares, axis=0)
-            md += ["## Framing", "", f"Face share of the canvas (face + hard images): centre crop "
-                   f"{c:.1%}, face crop {f:.1%} ({f / max(c, 1e-9):.1f}x).", ""]
-    for title, rows in (("Robustness (vs. clean photo)", robust_rows),
-                        ("Pins sweep (face subset)", pins_rows),
-                        ("Opacity sweep (face subset)", op_rows)):
+            md += [
+                "## Framing",
+                "",
+                f"Face share of the canvas (face + hard images): centre crop "
+                f"{c:.1%}, face crop {f:.1%} ({f / max(c, 1e-9):.1f}x).",
+                "",
+            ]
+    for title, rows in (
+        ("Robustness (vs. clean photo)", robust_rows),
+        ("Pins sweep (face subset)", pins_rows),
+        ("Opacity sweep (face subset)", op_rows),
+    ):
         if rows:
             cols = list(rows[0])
             md += [f"## {title}", "", "| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
             md += ["| " + " | ".join(str(r[c]) for c in cols) + " |" for r in rows] + [""]
     if curve_rows:
-        md += ["## Line-count curves: peak SSIM σ2", "",
-               "| image | solver | peak at | peak | auto-stop |", "|---|---|---|---|---|"]
+        md += [
+            "## Line-count curves: peak SSIM σ2",
+            "",
+            "| image | solver | peak at | peak | auto-stop |",
+            "|---|---|---|---|---|",
+        ]
         for img_id in sorted({r["image"] for r in curve_rows}):
             for s in ("greedy", "baseline"):
                 rr = [r for r in curve_rows if r["image"] == img_id and r["solver"] == s]
                 best = max(rr, key=lambda r: float(r["ssim_s2"]))
-                md.append(f"| {img_id} | {s} | {best['lines']} | {float(best['ssim_s2']):.3f} | "
-                          f"{rr[0]['auto_stop']} |")
+                md.append(
+                    f"| {img_id} | {s} | {best['lines']} | {float(best['ssim_s2']):.3f} | "
+                    f"{rr[0]['auto_stop']} |"
+                )
         md.append("")
     text = "\n".join(md)
     (out / "summary.md").write_text(text, encoding="utf-8")
@@ -312,8 +418,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sections", default="main,robust,curves,pins,opacity")
     ap.add_argument("--limit", type=int, default=None, help="first N images only (smoke test)")
-    ap.add_argument("--ids", default=None,
-                    help="comma-separated image ids to (re)run; their rows replace earlier ones")
+    ap.add_argument(
+        "--ids",
+        default=None,
+        help="comma-separated image ids to (re)run; their rows replace earlier ones",
+    )
     ap.add_argument("--out", default=str(ROOT / "outputs" / "experiments" / "m6"))
     args = ap.parse_args()
     out = Path(args.out)

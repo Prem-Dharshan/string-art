@@ -15,8 +15,9 @@ def thread_length_mm(sequence, pins, size: int, frame_mm: float) -> float:
     return float(chord_lengths_px(sequence, pins).sum() * frame_mm / (size - 1))
 
 
-def instructions(sequence, pins, size: int, frame: str, frame_mm: float | None = None,
-                 block: int = 100) -> str:
+def instructions(
+    sequence, pins, size: int, frame: str, frame_mm: float | None = None, block: int = 100
+) -> str:
     """Step-by-step winding list. Pins are numbered 0..n-1 clockwise, pin 0 at the top
     (circle) or the top-left corner (rect)."""
     n_lines = len(sequence) - 1
@@ -39,15 +40,18 @@ def instructions(sequence, pins, size: int, frame: str, frame_mm: float | None =
     for k in range(1, n_lines + 1):
         run += px[k - 1] * scale
         if (k - 1) % block == 0:
-            lines.append(f"-- lines {k}-{min(k + block - 1, n_lines)} "
-                         f"(thread used so far: {run:.1f} {unit}) --")
+            lines.append(
+                f"-- lines {k}-{min(k + block - 1, n_lines)} "
+                f"(thread used so far: {run:.1f} {unit}) --"
+            )
         lines.append(f"{k:5d}  {sequence[k - 1]:4d} -> {sequence[k]:4d}")
     lines.append(f"done: tie off at pin {sequence[-1]}")
     return "\n".join(lines) + "\n"
 
 
-def color_instructions(steps, palette: list[str], pins, size: int, frame: str,
-                       frame_mm: float | None = None) -> str:
+def color_instructions(
+    steps, palette: list[str], pins, size: int, frame: str, frame_mm: float | None = None
+) -> str:
     """Winding list for colour art: one spool per colour, each its own continuous thread.
     Steps must be wound in the listed order (it is the layering order the solver assumed)."""
     if frame_mm:
@@ -72,10 +76,15 @@ def color_instructions(steps, palette: list[str], pins, size: int, frame: str,
     ]
     for name in palette:
         if count[name]:
-            out.append(f"  {name:<10} {count[name]:5d} lines, {length[name]:.1f} {unit}, "
-                       f"tie on at pin {first[name]}")
-    out += ["Wind in the order below: switching spools keeps the layering the solver assumed.",
-            "Leave each idle spool hanging at its current pin.", ""]
+            out.append(
+                f"  {name:<10} {count[name]:5d} lines, {length[name]:.1f} {unit}, "
+                f"tie on at pin {first[name]}"
+            )
+    out += [
+        "Wind in the order below: switching spools keeps the layering the solver assumed.",
+        "Leave each idle spool hanging at its current pin.",
+        "",
+    ]
     run_start = 0
     for i in range(1, len(steps) + 1):
         if i == len(steps) or steps[i][0] != steps[run_start][0]:

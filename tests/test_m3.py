@@ -19,8 +19,10 @@ needs_models = pytest.mark.skipif(
 
 
 def _fake_face(x=40, y=30, w=40, h=50, landmarks=False):
-    five = np.array([[x + 12, y + 18], [x + 28, y + 18], [x + 20, y + 28], [x + 13, y + 38],
-                     [x + 27, y + 38]], float)
+    five = np.array(
+        [[x + 12, y + 18], [x + 28, y + 18], [x + 20, y + 28], [x + 13, y + 38], [x + 27, y + 38]],
+        float,
+    )
     return Face(np.array([x, y, w, h], float), 0.9, five, None)
 
 
@@ -31,8 +33,12 @@ def test_astronaut_face_and_landmarks():
     f = faces[0]
     assert f.landmarks.shape == (68, 2)
     x, y, w, h = f.box
-    inside = ((f.landmarks[:, 0] > x - 0.2 * w) & (f.landmarks[:, 0] < x + 1.2 * w)
-              & (f.landmarks[:, 1] > y - 0.2 * h) & (f.landmarks[:, 1] < y + 1.2 * h))
+    inside = (
+        (f.landmarks[:, 0] > x - 0.2 * w)
+        & (f.landmarks[:, 0] < x + 1.2 * w)
+        & (f.landmarks[:, 1] > y - 0.2 * h)
+        & (f.landmarks[:, 1] < y + 1.2 * h)
+    )
     assert inside.mean() > 0.9
 
 
@@ -69,8 +75,9 @@ def test_crop_box_clamped_inside_image():
 def test_legacy_config_matches_m2_chain():
     img = load_image("sample:camera")
     p = prepare(img, PreprocessConfig.legacy(size=128))
-    gray = cv2.resize(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (128, 128),
-                      interpolation=cv2.INTER_AREA)
+    gray = cv2.resize(
+        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (128, 128), interpolation=cv2.INTER_AREA
+    )
     gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
     ref = cv2.GaussianBlur(gray / 255.0, (0, 0), 1.0)
     ref[~p.mask] = 1.0
@@ -146,8 +153,21 @@ def test_evaluate_roi_keys():
 
 def test_cli_run_with_importance(tmp_path):
     out = tmp_path / "run"
-    main(["run", "sample:astronaut", "--size", "128", "--pins", "64", "--min-gap", "5",
-          "--out", str(out), "--quiet"])
+    main(
+        [
+            "run",
+            "sample:astronaut",
+            "--size",
+            "128",
+            "--pins",
+            "64",
+            "--min-gap",
+            "5",
+            "--out",
+            str(out),
+            "--quiet",
+        ]
+    )
     assert (out / "importance.png").is_file()
     meta = json.loads((out / "metrics.json").read_text())
     assert {"vs_target", "vs_photo"} <= meta["metrics"].keys()

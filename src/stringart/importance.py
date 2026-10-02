@@ -105,8 +105,9 @@ def saliency_map(bgr: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return sm / hi if hi > 0 else sm
 
 
-def importance(prep: Prepared, cfg: ImportanceConfig = ImportanceConfig()):  # noqa: B008
+def importance(prep: Prepared, cfg: ImportanceConfig | None = None):
     """Return (W, parts) where parts holds the component maps and the face ROI mask."""
+    cfg = cfg or ImportanceConfig()
     size = prep.target.shape[0]
     face, roi = face_map(prep.faces, size)
     edges = edge_map(prep.target, prep.mask, cfg.edge_sigma)
@@ -118,8 +119,7 @@ def importance(prep: Prepared, cfg: ImportanceConfig = ImportanceConfig()):  # n
     return w, {"face": face, "edges": edges, "saliency": sal, "face_roi": roi}
 
 
-def auto_weights(prep: Prepared, mode: str = "auto",
-                 cfg: ImportanceConfig = ImportanceConfig()):  # noqa: B008
+def auto_weights(prep: Prepared, mode: str = "auto", cfg: ImportanceConfig | None = None):
     """(W or None, parts). mode: "auto" = weights only when a face was found; "on"; "off"."""
     if mode not in ("auto", "on", "off"):
         raise ValueError(f"unknown importance mode {mode!r}")

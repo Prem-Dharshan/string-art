@@ -31,8 +31,10 @@ def test_lines_improve_on_blank_board(pins, target):
     res = solve_baseline(target, pins, BaselineConfig(n_lines=60, min_gap=6), progress=False)
     blank = np.ones_like(target)
     drawn = render_sequence(res.sequence, pins, target.shape, 0.2).image()
-    assert evaluate(target, drawn, sigmas=(2,))["psnr_s2"] > evaluate(target, blank, sigmas=(2,))[
-        "psnr_s2"]
+    assert (
+        evaluate(target, drawn, sigmas=(2,))["psnr_s2"]
+        > evaluate(target, blank, sigmas=(2,))["psnr_s2"]
+    )
 
 
 def test_min_gap_too_large_raises(pins, target):

@@ -14,8 +14,9 @@ from stringart.viz import Source
 
 
 def _src(pins, target, n=150):
-    seq = solve_baseline(target, pins, BaselineConfig(n_lines=n, min_gap=6),
-                         progress=False).sequence
+    seq = solve_baseline(
+        target, pins, BaselineConfig(n_lines=n, min_gap=6), progress=False
+    ).sequence
     return seq, Source.gray(seq, pins, target.shape, 0.2)
 
 
@@ -23,8 +24,9 @@ def _color_src(pins):
     t = np.ones((120, 120, 3))
     t[30:90, 30:90] = (0.8, 0.2, 0.1)
     names = ["black", "red"]
-    res = solve_color(t, pins, palette_rgb(names), ColorConfig(opacity=0.3, min_gap=6,
-                                                               min_run=10), names=names)
+    res = solve_color(
+        t, pins, palette_rgb(names), ColorConfig(opacity=0.3, min_gap=6, min_run=10), names=names
+    )
     return t, res, Source.color(res.steps, pins, (120, 120), res.colors, 0.3, names)
 
 
@@ -75,7 +77,8 @@ def test_live_player_headless(tmp_path, monkeypatch, pins, target):
         fig = plt.gcf()
         anim = fig._stringart_anim
         key = lambda k: fig.canvas.callbacks.process(  # noqa: E731
-            "key_press_event", KeyEvent("key_press_event", fig.canvas, k))
+            "key_press_event", KeyEvent("key_press_event", fig.canvas, k)
+        )
         for i in range(3):
             anim._func(i)
         key(" ")
@@ -95,10 +98,31 @@ def test_live_player_headless(tmp_path, monkeypatch, pins, target):
 
 def test_cli_run_then_viz(tmp_path):
     out = tmp_path / "run"
-    main(["run", "sample:camera", "--size", "128", "--pins", "64", "--lines", "100",
-          "--min-gap", "5", "--out", str(out), "--quiet"])
-    for f in ("target.png", "render.png", "render.svg", "sequence.json", "metrics.json",
-              "instructions.txt"):
+    main(
+        [
+            "run",
+            "sample:camera",
+            "--size",
+            "128",
+            "--pins",
+            "64",
+            "--lines",
+            "100",
+            "--min-gap",
+            "5",
+            "--out",
+            str(out),
+            "--quiet",
+        ]
+    )
+    for f in (
+        "target.png",
+        "render.png",
+        "render.svg",
+        "sequence.json",
+        "metrics.json",
+        "instructions.txt",
+    ):
         assert (out / f).is_file()
     main(["viz", str(out), "--grid", "10,100", "--save", str(out / "b.mp4")])
     assert (out / "grid.png").is_file() and (out / "b.mp4").is_file()
@@ -106,8 +130,23 @@ def test_cli_run_then_viz(tmp_path):
 
 def test_cli_color_run_then_viz(tmp_path):
     out = tmp_path / "crun"
-    main(["run", "sample:coffee", "--size", "128", "--pins", "64", "--min-gap", "5",
-          "--colors", "3", "--out", str(out), "--quiet"])
+    main(
+        [
+            "run",
+            "sample:coffee",
+            "--size",
+            "128",
+            "--pins",
+            "64",
+            "--min-gap",
+            "5",
+            "--colors",
+            "3",
+            "--out",
+            str(out),
+            "--quiet",
+        ]
+    )
     doc = json.loads((out / "sequence.json").read_text())
     assert doc["mode"] == "color" and len(doc["palette"]) == 3 and doc["steps"]
     assert "thread" in (out / "instructions.txt").read_text().lower()

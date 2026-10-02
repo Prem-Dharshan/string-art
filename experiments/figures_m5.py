@@ -1,6 +1,6 @@
 """M5 report figure: colour gallery (target | LessWrong-style baseline | joint colour greedy).
 
-    uv run python experiments/figures_m5.py [--docs]
+uv run python experiments/figures_m5.py [--docs]
 """
 
 import argparse
@@ -11,10 +11,17 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-IDS = ["f14_boy_smiling_outdoor", "a03_border_collie", "f15_child_monk_small_face",
-       "o01_lighthouse_striped"]
-COLS = [("target", "target (preprocessed photo)"), ("lw_baseline", "LessWrong-style baseline"),
-        ("joint", "joint colour greedy (ours)")]
+IDS = [
+    "f14_boy_smiling_outdoor",
+    "a03_border_collie",
+    "f15_child_monk_small_face",
+    "o01_lighthouse_striped",
+]
+COLS = [
+    ("target", "target (preprocessed photo)"),
+    ("lw_baseline", "LessWrong-style baseline"),
+    ("joint", "joint colour greedy (ours)"),
+]
 
 
 def main():
@@ -33,8 +40,16 @@ def main():
     header = np.full((34, grid.shape[1], 3), 252, np.uint8)
     w = grid.shape[1] // len(COLS)
     for k, (_, title) in enumerate(COLS):
-        cv2.putText(header, title, (k * w + 10, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.55,
-                    (40, 40, 40), 1, cv2.LINE_AA)
+        cv2.putText(
+            header,
+            title,
+            (k * w + 10, 23),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (40, 40, 40),
+            1,
+            cv2.LINE_AA,
+        )
     out = Path(args.src) / "figures"
     out.mkdir(exist_ok=True)
     path = out / "m5_color_gallery.png"
