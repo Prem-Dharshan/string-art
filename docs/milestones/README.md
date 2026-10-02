@@ -11,7 +11,7 @@ One document per milestone: goal, what was built, design decisions, results, fin
 | M2 Improved greedy solver | done | [M2-greedy-solver.md](M2-greedy-solver.md) | `fe395f6` |
 | M3 Preprocessing and importance maps | done (4-image eval) | [M3-preprocessing-importance.md](M3-preprocessing-importance.md) | `da3f38e` |
 | M6 Dataset, evaluation and fabrication output | done | [M6-evaluation.md](M6-evaluation.md) | see git log |
-| M4 Refinement (remove/swap) | planned | | |
+| M4 Path refinement + parallel solver | done | [M4-refinement.md](M4-refinement.md) | see git log |
 | M5 Colour | planned | | |
 
 **Conventions used in every results table**

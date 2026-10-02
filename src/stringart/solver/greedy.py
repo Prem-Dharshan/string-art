@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 import cv2
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 from . import SolveResult
 
@@ -82,6 +82,19 @@ def _line(p0x, p0y, p1x, p1y, h, wd, d, t, w, alpha, apply):
     return total
 
 
+@njit(cache=True, parallel=True)
+def _score_from(pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, t, w, alpha, out):
+    """out[j] = dE of chord cur -> j (-inf if not allowed). Read-only on d, so parallel."""
+    n = pins.shape[0]
+    for j in prange(n):
+        gap = abs(cur - j) % n
+        if min(gap, n - gap) < min_gap or j == prev or counts[cur, j] >= max_repeats:
+            out[j] = -np.inf
+        else:
+            out[j] = _line(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d, t, w,
+                           alpha, False)
+
+
 @njit(cache=True)
 def _solve(pins, h, wd, d, t, w, alpha, max_lines, min_gap, max_repeats, stop_tol, patience,
            start):
@@ -89,18 +102,15 @@ def _solve(pins, h, wd, d, t, w, alpha, max_lines, min_gap, max_repeats, stop_to
     counts = np.zeros((n, n), dtype=np.int32)
     seq = np.empty(max_lines + 1, dtype=np.int64)
     gains = np.empty(max_lines, dtype=np.float64)
+    scores = np.empty(n)
     seq[0] = start
     cur, prev, k, bad = start, -1, 0, 0
     while k < max_lines:
+        _score_from(pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, t, w, alpha, scores)
         best, best_j = -np.inf, -1
-        for j in range(n):
-            gap = abs(cur - j) % n
-            if min(gap, n - gap) < min_gap or j == prev or counts[cur, j] >= max_repeats:
-                continue
-            g = _line(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d, t, w, alpha,
-                      False)
-            if g > best:
-                best, best_j = g, j
+        for j in range(n):  # first maximum, same tie-breaking as a serial scan
+            if scores[j] > best:
+                best, best_j = scores[j], j
         if best_j < 0:
             break
         if best <= stop_tol:
@@ -173,19 +183,22 @@ def _line_blur(p0x, p0y, p1x, p1y, h, wd, d, field, w, alpha, c0, apply, scratch
     return total
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def _best_blur(pins, cur, prev, counts, min_gap, max_repeats, h, wd, d, field, w, alpha, c0,
                scratch):
     n = pins.shape[0]
-    best, best_j = -np.inf, -1
-    for j in range(n):
+    scores = np.empty(n)
+    for j in prange(n):  # scoring is read-only on d / field
         gap = abs(cur - j) % n
         if min(gap, n - gap) < min_gap or j == prev or counts[cur, j] >= max_repeats:
-            continue
-        g = _line_blur(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d, field, w,
-                       alpha, c0, False, scratch)
-        if g > best:
-            best, best_j = g, j
+            scores[j] = -np.inf
+        else:
+            scores[j] = _line_blur(pins[cur, 0], pins[cur, 1], pins[j, 0], pins[j, 1], h, wd, d,
+                                   field, w, alpha, c0, False, scratch)
+    best, best_j = -np.inf, -1
+    for j in range(n):
+        if scores[j] > best:
+            best, best_j = scores[j], j
     return best_j, best
 
 
