@@ -46,7 +46,8 @@ def main() -> None:
     rows = []
     for src in args.images:
         name = Path(src.split(":", 1)[-1]).stem
-        target, mask = preprocess(load_image(src), PreprocessConfig(size=args.size))
+        # The M2 comparison is about solvers, so keep the M1/M2 preprocessing fixed.
+        target, mask = preprocess(load_image(src), PreprocessConfig.legacy(size=args.size))
         save_gray(out / f"{name}_target.png", target)
 
         def record(method, res, extra=""):

@@ -12,20 +12,27 @@ uv sync
 ## Usage
 
 ```sh
-# Solve (baseline greedy) and write outputs/<image>_baseline/
-uv run stringart run path/to/photo.jpg --pins 256 --lines 3000
-uv run stringart run sample:camera            # scikit-image test images: astronaut, camera, coffee, chelsea
+# One-off: download the OpenCV face models (YuNet 0.2 MB + LBF landmarks 56 MB) into models/
+uv run stringart fetch-models
+
+# Solve and write outputs/<image>_greedy/
+# (face-centred crop, auto importance map, line count chosen automatically)
+uv run stringart run path/to/photo.jpg --pins 256
+uv run stringart run sample:astronaut         # scikit-image test images: astronaut, camera, coffee, chelsea
+uv run stringart run photo.jpg --thread-mm 0.25 --frame-mm 500   # thread opacity from real sizes
+uv run stringart run photo.jpg --solver baseline --legacy-prep  # the LessWrong-style baseline
 
 # Watch the image form thread by thread (space pause, -> step, +/- speed, e end)
-uv run stringart viz outputs/camera_baseline
+uv run stringart viz outputs/camera_greedy
 
 # Export the build-up and a snapshot grid for the report
-uv run stringart viz outputs/camera_baseline --save build.mp4 --save build.gif --scale 0.5
-uv run stringart viz outputs/camera_baseline --grid 100,500,1500,3000
+uv run stringart viz outputs/camera_greedy --save build.mp4 --save build.gif --scale 0.5
+uv run stringart viz outputs/camera_greedy --grid 100,500,1500,3000
 ```
 
 Each run directory has `sequence.json` (pin coordinates and pin order, the fabrication output),
-`target.png`, `render.png`, `render.svg` and `metrics.json` (PSNR/SSIM raw and blurred, timing,
+`target.png`, `render.png`, `render.svg`, `importance.png` (when used) and `metrics.json`
+(PSNR/SSIM raw and blurred vs. the target and vs. the plain photo, face-region scores, timing,
 full config).
 
 ## Development

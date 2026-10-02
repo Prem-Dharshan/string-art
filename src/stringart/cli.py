@@ -8,9 +8,11 @@ from pathlib import Path
 
 from . import viz
 from .geometry import make_pins
+from .importance import ImportanceConfig, auto_weights
 from .io import load_gray, load_sequence, save_gray, save_sequence
 from .metrics import evaluate
-from .preprocess import PreprocessConfig, frame_mask, load_image, preprocess
+from .models import fetch, model_path
+from .preprocess import PreprocessConfig, frame_mask, load_image, prepare
 from .render import render_sequence, to_svg
 from .solver.baseline import BaselineConfig, solve_baseline
 from .solver.greedy import GreedyConfig, opacity_from_physical, solve_greedy
@@ -21,36 +23,54 @@ def _run(args) -> None:
         raise ValueError("--thread-mm and --frame-mm must be given together")
     if args.thread_mm is not None:
         args.opacity = round(opacity_from_physical(args.thread_mm, args.frame_mm, args.size), 4)
-    pcfg = PreprocessConfig(size=args.size, frame=args.frame, clahe_clip=args.clahe,
-                            blur_sigma=args.blur)
-    target, mask = preprocess(load_image(args.image), pcfg)
+    if not args.legacy_prep and not model_path("yunet").is_file():
+        print("note: face model not found, so no face crop/landmarks. "
+              "Run `stringart fetch-models` to enable them.")
+    if args.legacy_prep:
+        pcfg = PreprocessConfig.legacy(size=args.size, frame=args.frame, clahe_clip=args.clahe,
+                                       blur_sigma=args.blur)
+    else:
+        pcfg = PreprocessConfig(size=args.size, frame=args.frame, clahe_clip=args.clahe,
+                                crop=args.crop, face_zoom=args.face_zoom,
+                                background=args.background)
+    prep = prepare(load_image(args.image), pcfg)
+    target, mask = prep.target, prep.mask
+    weights, parts = auto_weights(prep, args.importance,
+                                  ImportanceConfig(floor=args.importance_floor))
     pins = make_pins(args.frame, args.pins, args.size)
     if args.solver == "baseline":
         scfg = BaselineConfig(n_lines=args.lines or 3000, line_strength=args.line_strength,
                               min_gap=args.min_gap, n_candidates=args.candidates,
                               darkness_penalty=args.darkness_penalty, seed=args.seed)
-        res = solve_baseline(target, pins, scfg, progress=not args.quiet)
+        res = solve_baseline(target, pins, scfg, weights=weights, progress=not args.quiet)
     else:
         scfg = GreedyConfig(max_lines=args.lines or 8000, opacity=args.opacity,
                             min_gap=args.min_gap, max_repeats=args.max_repeats,
                             objective=args.objective, blur_sigma=args.blur_sigma)
-        res = solve_greedy(target, pins, scfg, progress=not args.quiet)
+        res = solve_greedy(target, pins, scfg, weights=weights, progress=not args.quiet)
     render = render_sequence(res.sequence, pins, target.shape, args.opacity).image()
-    metrics = evaluate(target, render, mask)
+    roi = parts["face_roi"]
+    metrics = {"vs_target": evaluate(target, render, mask, roi=roi),
+               "vs_photo": evaluate(prep.plain, render, mask, roi=roi)}
 
     stem = Path(args.image.split(":", 1)[-1]).stem
     out = Path(args.out) if args.out else Path("outputs") / f"{stem}_{args.solver}"
     out.mkdir(parents=True, exist_ok=True)
     save_gray(out / "target.png", target)
     save_gray(out / "render.png", render)
+    if weights is not None:
+        save_gray(out / "importance.png", weights)
     (out / "render.svg").write_text(to_svg(res.sequence, pins, args.size, args.opacity))
     meta = {"image": args.image, "solver": args.solver, "elapsed_s": round(res.elapsed_s, 3),
+            "faces": len(prep.faces), "crop_xyside": list(prep.crop),
             "preprocess": asdict(pcfg), "solver_config": asdict(scfg), "metrics": metrics}
     save_sequence(out / "sequence.json", sequence=res.sequence, pins=pins, size=args.size,
                   frame=args.frame, opacity=args.opacity, meta=meta)
     (out / "metrics.json").write_text(json.dumps(meta, indent=2))
-    print(f"{len(res.sequence) - 1} lines in {res.elapsed_s:.2f}s -> {out}")
-    print("  " + "  ".join(f"{k}={v}" for k, v in metrics.items()))
+    print(f"{len(res.sequence) - 1} lines in {res.elapsed_s:.2f}s, {len(prep.faces)} face(s) "
+          f"-> {out}")
+    for name, m in metrics.items():
+        print(f"  {name}: " + "  ".join(f"{k}={v}" for k, v in m.items() if "s0" not in k))
     if args.viz:
         viz.play(res.sequence, pins, target.shape, args.opacity, target, mask)
 
@@ -107,8 +127,20 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--line-strength", type=float, default=0.1)
     b.add_argument("--candidates", type=int, default=None, help="random candidates per step")
     b.add_argument("--darkness-penalty", type=float, default=0.0)
-    r.add_argument("--clahe", type=float, default=2.0, help="CLAHE clip limit (0 = off)")
-    r.add_argument("--blur", type=float, default=1.0, help="Gaussian sigma (0 = off)")
+    pp = r.add_argument_group("preprocessing / importance")
+    pp.add_argument("--crop", choices=["face", "center"], default="face",
+                    help="centre the frame on the largest face (falls back to centre)")
+    pp.add_argument("--face-zoom", type=float, default=1.8, help="crop side / face height")
+    pp.add_argument("--background", choices=["none", "fade"], default="none",
+                    help="fade: lighten the background with GrabCut (only when a face is found)")
+    pp.add_argument("--importance", choices=["auto", "on", "off"], default="auto",
+                    help="error weights from face/edges/saliency (auto: only if a face is found)")
+    pp.add_argument("--importance-floor", type=float, default=0.1,
+                    help="weight of unimportant regions (0..1)")
+    pp.add_argument("--clahe", type=float, default=2.0, help="CLAHE clip limit (0 = off)")
+    pp.add_argument("--legacy-prep", action="store_true",
+                    help="M1/M2 chain: centre crop, CLAHE, Gaussian (--blur)")
+    pp.add_argument("--blur", type=float, default=1.0, help="Gaussian sigma for --legacy-prep")
     r.add_argument("--seed", type=int, default=0)
     r.add_argument("--viz", action="store_true", help="open the visualizer when done")
     r.add_argument("--quiet", action="store_true")
@@ -126,7 +158,16 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--scale", type=float, default=1.0, help="export resolution scale")
     v.add_argument("--opacity", type=float, default=None, help="override thread opacity")
     v.set_defaults(func=_viz)
+
+    f = sub.add_parser("fetch-models", help="download the YuNet face and LBF landmark models")
+    f.add_argument("--no-lbf", action="store_true", help="skip the 56 MB landmark model")
+    f.set_defaults(func=_fetch_models)
     return p
+
+
+def _fetch_models(args) -> None:
+    for name in ("yunet",) if args.no_lbf else ("yunet", "lbf"):
+        print(f"{name}: {fetch(name)}")
 
 
 def main(argv: list[str] | None = None) -> None:
