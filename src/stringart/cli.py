@@ -13,17 +13,28 @@ from .metrics import evaluate
 from .preprocess import PreprocessConfig, frame_mask, load_image, preprocess
 from .render import render_sequence, to_svg
 from .solver.baseline import BaselineConfig, solve_baseline
+from .solver.greedy import GreedyConfig, opacity_from_physical, solve_greedy
 
 
 def _run(args) -> None:
+    if (args.thread_mm is None) != (args.frame_mm is None):
+        raise ValueError("--thread-mm and --frame-mm must be given together")
+    if args.thread_mm is not None:
+        args.opacity = round(opacity_from_physical(args.thread_mm, args.frame_mm, args.size), 4)
     pcfg = PreprocessConfig(size=args.size, frame=args.frame, clahe_clip=args.clahe,
                             blur_sigma=args.blur)
     target, mask = preprocess(load_image(args.image), pcfg)
     pins = make_pins(args.frame, args.pins, args.size)
-    scfg = BaselineConfig(n_lines=args.lines, line_strength=args.line_strength,
-                          min_gap=args.min_gap, n_candidates=args.candidates,
-                          darkness_penalty=args.darkness_penalty, seed=args.seed)
-    res = solve_baseline(target, pins, scfg, progress=not args.quiet)
+    if args.solver == "baseline":
+        scfg = BaselineConfig(n_lines=args.lines or 3000, line_strength=args.line_strength,
+                              min_gap=args.min_gap, n_candidates=args.candidates,
+                              darkness_penalty=args.darkness_penalty, seed=args.seed)
+        res = solve_baseline(target, pins, scfg, progress=not args.quiet)
+    else:
+        scfg = GreedyConfig(max_lines=args.lines or 8000, opacity=args.opacity,
+                            min_gap=args.min_gap, max_repeats=args.max_repeats,
+                            objective=args.objective, blur_sigma=args.blur_sigma)
+        res = solve_greedy(target, pins, scfg, progress=not args.quiet)
     render = render_sequence(res.sequence, pins, target.shape, args.opacity).image()
     metrics = evaluate(target, render, mask)
 
@@ -76,17 +87,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     r = sub.add_parser("run", help="compute a pin sequence for an image")
     r.add_argument("image", help="image path, or sample:astronaut / sample:camera / ...")
-    r.add_argument("--solver", choices=["baseline"], default="baseline")
+    r.add_argument("--solver", choices=["greedy", "baseline"], default="greedy")
     r.add_argument("--out", help="output directory (default outputs/<image>_<solver>)")
     r.add_argument("--size", type=int, default=600, help="canvas size in px")
     r.add_argument("--frame", choices=["circle", "rect"], default="circle")
     r.add_argument("--pins", type=int, default=256)
-    r.add_argument("--lines", type=int, default=3000)
-    r.add_argument("--line-strength", type=float, default=0.1)
+    r.add_argument("--lines", type=int, default=None,
+                   help="baseline: line count (default 3000); greedy: cap (default 8000)")
     r.add_argument("--min-gap", type=int, default=10)
-    r.add_argument("--candidates", type=int, default=None, help="random candidates per step")
-    r.add_argument("--darkness-penalty", type=float, default=0.0)
-    r.add_argument("--opacity", type=float, default=0.2, help="thread opacity for rendering")
+    r.add_argument("--opacity", type=float, default=0.2,
+                   help="thread opacity per pixel (solver model and rendering)")
+    r.add_argument("--thread-mm", type=float, help="thread width; with --frame-mm sets opacity")
+    r.add_argument("--frame-mm", type=float, help="frame diameter/side in mm")
+    g = r.add_argument_group("greedy solver")
+    g.add_argument("--objective", choices=["pixel", "blur"], default="pixel")
+    g.add_argument("--blur-sigma", type=float, default=1.5, help="viewing blur for 'blur'")
+    g.add_argument("--max-repeats", type=int, default=2, help="max uses of one chord")
+    b = r.add_argument_group("baseline solver")
+    b.add_argument("--line-strength", type=float, default=0.1)
+    b.add_argument("--candidates", type=int, default=None, help="random candidates per step")
+    b.add_argument("--darkness-penalty", type=float, default=0.0)
     r.add_argument("--clahe", type=float, default=2.0, help="CLAHE clip limit (0 = off)")
     r.add_argument("--blur", type=float, default=1.0, help="Gaussian sigma (0 = off)")
     r.add_argument("--seed", type=int, default=0)

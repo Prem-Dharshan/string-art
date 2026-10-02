@@ -179,7 +179,7 @@ Models go in `models/` (gitignored): `face_detection_yunet_2023mar.onnx` and
 |---|---|---|
 | M0 | Env and project setup | ✅ uv project, Python 3.12 venv, OpenCV 5.0 contrib, numba verified |
 | M1 | Baseline reproduced, plus visualizer | ✅ LessWrong-style greedy (all candidates scored per step via `reduceat`, ~7 s for 256 pins / 3k lines / 600 px); metrics logged; `stringart viz` live player, mp4/GIF export, snapshot grid. Observed: no stopping rule, so extra lines over-darken (motivates I2) |
-| M2 | Core solver (I1–I3) | Beats baseline on blurred SSIM at equal line count; < 5 s for 256 pins / 4k lines / 600 px |
+| M2 | Core solver (I1–I3) | ✅ mostly met. `experiments/compare_solvers.py`, 4 images. Greedy (pixel objective) beats a *tuned* baseline at equal line count on SSIM σ=2 and σ=4 for 4/4 images (+0.005–0.02). It beats the untuned 3k-line baseline by +0.04–0.10 SSIM σ=2 and +1.5–3 dB PSNR σ=2. It picks its own line count (2.4k–3.6k). Time: 3–7 s on a loaded machine, so the < 5 s / 4k-line target is borderline. The blur objective (σ=1) is best on blurred metrics for 4/4 images but takes ~2–4× longer, so it stays an option. |
 | M3 | Preprocessing and importance (I4, I5) | Works on a 20-image test set without per-image tuning; face regions measurably better |
 | M4 | Refinement (I6) | Measurable ΔE / SSIM gain for < 2× runtime |
 | M5 | Color (I7) | 2–4 color outputs; Lab vs RGB palette comparison |
