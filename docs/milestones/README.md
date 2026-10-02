@@ -12,7 +12,8 @@ One document per milestone: goal, what was built, design decisions, results, fin
 | M3 Preprocessing and importance maps | done (4-image eval) | [M3-preprocessing-importance.md](M3-preprocessing-importance.md) | `da3f38e` |
 | M6 Dataset, evaluation and fabrication output | done | [M6-evaluation.md](M6-evaluation.md) | see git log |
 | M4 Path refinement + parallel solver | done | [M4-refinement.md](M4-refinement.md) | see git log |
-| M5 Colour | planned | | |
+| M5 Colour string art | done | [M5-colour.md](M5-colour.md) | see git log |
+| M7 Interactive demo app | done | [M7-demo.md](M7-demo.md) | see git log |
 
 **Conventions used in every results table**
 - Images are rendered with the same thread model the solver uses (`render.Canvas`).

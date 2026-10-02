@@ -21,6 +21,11 @@ uv run stringart run path/to/photo.jpg --pins 256
 uv run stringart run sample:astronaut         # scikit-image test images: astronaut, camera, coffee, chelsea
 uv run stringart run photo.jpg --thread-mm 0.25 --frame-mm 500   # thread opacity from real sizes
 uv run stringart run photo.jpg --solver baseline --legacy-prep  # the LessWrong-style baseline
+uv run stringart run photo.jpg --colors 4 --pins 300 --frame-mm 700  # colour, 4 thread spools
+uv run stringart run photo.jpg --palette black,tan,brown,red         # choose the threads yourself
+
+# Interactive demo (browser UI, runs locally)
+uv run --extra demo stringart demo
 
 # Watch the image form thread by thread (space pause, -> step, +/- speed, e end)
 uv run stringart viz outputs/camera_greedy
@@ -43,6 +48,8 @@ uv run python experiments/compare_solvers.py    # M2: greedy vs baseline (sample
 uv run python experiments/ablation_m3.py        # M3: preprocessing / importance ablation
 uv run python experiments/evaluate_dataset.py   # M6: full evaluation -> outputs/experiments/m6/
 uv run python experiments/figures_m6.py --docs  # M6: report figures
+uv run python experiments/evaluate_refine.py    # M4: refinement sweeps on all 30 images
+uv run python experiments/evaluate_color.py     # M5: colour vs LessWrong-style baseline
 ```
 
 The milestone log with results and findings is in [docs/milestones/](docs/milestones/README.md).

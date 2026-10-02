@@ -1,4 +1,5 @@
-"""Command line: `stringart run <image>` solves, `stringart viz <run dir or sequence.json>` replays."""
+"""Command line: `stringart run <image>` solves, `stringart viz <run dir>` replays,
+`stringart demo` opens the web demo."""
 
 import argparse
 import json
@@ -7,16 +8,25 @@ from dataclasses import asdict
 from pathlib import Path
 
 from . import viz
-from .fabrication import instructions, thread_length_mm
+from .fabrication import color_instructions, instructions, thread_length_mm
 from .geometry import make_pins
 from .importance import ImportanceConfig, auto_weights
-from .io import load_gray, load_sequence, save_gray, save_sequence
+from .io import (
+    load_gray,
+    load_rgb,
+    load_sequence,
+    save_color_result,
+    save_gray,
+    save_rgb,
+    save_sequence,
+)
 from .metrics import evaluate
 from .models import fetch, model_path
 from .preprocess import PreprocessConfig, frame_mask, load_image, prepare
 from .render import render_sequence, to_svg
 from .solver.baseline import BaselineConfig, solve_baseline
 from .solver.greedy import GreedyConfig, opacity_from_physical, solve_greedy
+from .solver.refine import RefineConfig, refine
 
 
 def _run(args) -> None:
@@ -39,6 +49,9 @@ def _run(args) -> None:
     weights, parts = auto_weights(prep, args.importance,
                                   ImportanceConfig(floor=args.importance_floor))
     pins = make_pins(args.frame, args.pins, args.size)
+    if args.colors > 1 or args.palette:
+        _run_color(args, prep, pcfg, weights, parts, pins)
+        return
     if args.solver == "baseline":
         scfg = BaselineConfig(n_lines=args.lines or 3000, line_strength=args.line_strength,
                               min_gap=args.min_gap, n_candidates=args.candidates,
@@ -49,6 +62,13 @@ def _run(args) -> None:
                             min_gap=args.min_gap, max_repeats=args.max_repeats,
                             objective=args.objective, blur_sigma=args.blur_sigma)
         res = solve_greedy(target, pins, scfg, weights=weights, progress=not args.quiet)
+    refine_stats = None
+    if args.refine > 0:
+        res.sequence, refine_stats = refine(
+            target, pins, res.sequence, args.opacity, min_gap=args.min_gap,
+            max_repeats=args.max_repeats, weights=weights, cfg=RefineConfig(sweeps=args.refine),
+            progress=not args.quiet)
+        res.elapsed_s += refine_stats["elapsed_s"]
     render = render_sequence(res.sequence, pins, target.shape, args.opacity).image()
     roi = parts["face_roi"]
     metrics = {"vs_target": evaluate(target, render, mask, roi=roi),
@@ -69,7 +89,8 @@ def _run(args) -> None:
             "thread_length_m": (round(thread_length_mm(res.sequence, pins, args.size,
                                                        args.frame_mm) / 1000, 2)
                                 if args.frame_mm else None),
-            "preprocess": asdict(pcfg), "solver_config": asdict(scfg), "metrics": metrics}
+            "preprocess": asdict(pcfg), "solver_config": asdict(scfg), "refine": refine_stats,
+            "metrics": metrics}
     save_sequence(out / "sequence.json", sequence=res.sequence, pins=pins, size=args.size,
                   frame=args.frame, opacity=args.opacity, meta=meta)
     (out / "metrics.json").write_text(json.dumps(meta, indent=2))
@@ -78,33 +99,93 @@ def _run(args) -> None:
     for name, m in metrics.items():
         print(f"  {name}: " + "  ".join(f"{k}={v}" for k, v in m.items() if "s0" not in k))
     if args.viz:
-        viz.play(res.sequence, pins, target.shape, args.opacity, target, mask)
+        viz.play(viz.Source.gray(res.sequence, pins, target.shape, args.opacity), target, mask)
+
+
+def _run_color(args, prep, pcfg, weights, parts, pins) -> None:
+    from .color import (
+        ColorConfig,
+        auto_palette,
+        color_metrics,
+        color_target,
+        palette_rgb,
+        render_steps,
+        solve_color,
+        solve_color_baseline,
+    )
+
+    target = color_target(prep, clahe_clip=args.clahe)
+    names = ([n.strip() for n in args.palette.split(",")] if args.palette
+             else auto_palette(target, prep.mask, args.colors))
+    colors = palette_rgb(names)
+    ccfg = ColorConfig(n_colors=len(names), palette=names, opacity=args.opacity,
+                       max_lines=args.lines or 12000, min_gap=args.min_gap,
+                       max_repeats=args.max_repeats, min_run=args.min_run)
+    if args.solver == "baseline":
+        res = solve_color_baseline(target, pins, colors, ccfg, names=names)
+    else:
+        res = solve_color(target, pins, colors, ccfg, weights=weights, names=names)
+    render = render_steps(res.steps, pins, target.shape[:2], colors, args.opacity).image()
+    metrics = color_metrics(target, render, prep.mask)
+
+    stem = Path(args.image.split(":", 1)[-1]).stem
+    out = Path(args.out) if args.out else Path("outputs") / f"{stem}_{args.solver}_color"
+    out.mkdir(parents=True, exist_ok=True)
+    save_rgb(out / "target.png", target)
+    save_rgb(out / "render.png", render)
+    (out / "instructions.txt").write_text(
+        color_instructions(res.steps, names, pins, args.size, args.frame, args.frame_mm),
+        encoding="utf-8")
+    switches = sum(1 for a, b in zip(res.steps, res.steps[1:], strict=False) if a[0] != b[0])
+    meta = {"image": args.image, "solver": args.solver, "elapsed_s": round(res.elapsed_s, 3),
+            "palette": names, "lines_per_colour": {n: sum(1 for k, _, _ in res.steps
+                                                          if names[k] == n) for n in names},
+            "colour_switches": switches, "faces": len(prep.faces),
+            "preprocess": asdict(pcfg), "colour_config": asdict(ccfg), "metrics": metrics}
+    save_color_result(out / "sequence.json", steps=res.steps, palette=names, colors=colors,
+                      pins=pins, size=args.size, frame=args.frame, opacity=args.opacity,
+                      meta=meta)
+    (out / "metrics.json").write_text(json.dumps(meta, indent=2))
+    per = ", ".join(f"{n} {c}" for n, c in meta["lines_per_colour"].items())
+    print(f"{len(res.steps)} lines ({per}), {switches} spool switches, "
+          f"{res.elapsed_s:.2f}s -> {out}")
+    print("  " + "  ".join(f"{k}={v}" for k, v in metrics.items()))
+    if args.viz:
+        viz.play(viz.Source.color(res.steps, pins, target.shape[:2], colors, args.opacity,
+                                  names), target, prep.mask)
 
 
 def _viz(args) -> None:
     src = Path(args.source)
     seq_path = src / "sequence.json" if src.is_dir() else src
     doc = load_sequence(seq_path)
+    color = doc.get("mode") == "color"
     target_path = Path(args.target) if args.target else seq_path.parent / "target.png"
-    target = load_gray(target_path) if target_path.is_file() else None
+    target = None
+    if target_path.is_file():
+        target = load_rgb(target_path) if color else load_gray(target_path)
     mask = frame_mask(doc["frame"], doc["size"]) if target is not None else None
     shape = (doc["size"], doc["size"])
-    seq, pins, opacity = doc["sequence"], doc["pins"], args.opacity or doc["opacity"]
+    opacity = args.opacity or doc["opacity"]
+    if color:
+        source = viz.Source.color(doc["steps"], doc["pins"], shape, doc["colors"], opacity,
+                                  doc["palette"])
+    else:
+        source = viz.Source.gray(doc["sequence"], doc["pins"], shape, opacity)
 
     did_file_output = False
     if args.grid:
         counts = [int(c) for c in args.grid.split(",")]
-        path = viz.snapshot_grid(seq, pins, shape, opacity, counts,
-                                 seq_path.parent / "grid.png", target, mask)
+        path = viz.snapshot_grid(source, counts, seq_path.parent / "grid.png", target, mask)
         print(f"wrote {path}")
         did_file_output = True
     for out in args.save or []:
-        path = viz.export(seq, pins, shape, opacity, Path(out), lines_per_frame=args.step,
-                          fps=args.fps, duration_s=args.duration, scale=args.scale)
+        path = viz.export(source, Path(out), lines_per_frame=args.step, fps=args.fps,
+                          duration_s=args.duration, scale=args.scale)
         print(f"wrote {path}")
         did_file_output = True
     if not did_file_output or args.show:
-        viz.play(seq, pins, shape, opacity, target, mask, lines_per_frame=args.step or 10)
+        viz.play(source, target, mask, lines_per_frame=args.step or 10)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -130,6 +211,14 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--objective", choices=["pixel", "blur"], default="pixel")
     g.add_argument("--blur-sigma", type=float, default=1.5, help="viewing blur for 'blur'")
     g.add_argument("--max-repeats", type=int, default=2, help="max uses of one chord")
+    g.add_argument("--refine", type=int, default=2,
+                   help="refinement sweeps after greedy (delete/reroute/insert pins; 0 = off)")
+    c = r.add_argument_group("colour")
+    c.add_argument("--colors", type=int, default=1,
+                   help="number of thread colours (>1 = colour mode, palette by Lab k-means)")
+    c.add_argument("--palette", help="explicit thread colours, e.g. black,red,tan,blue")
+    c.add_argument("--min-run", type=int, default=100,
+                   help="colour mode: lines before switching spool")
     b = r.add_argument_group("baseline solver")
     b.add_argument("--line-strength", type=float, default=0.1)
     b.add_argument("--candidates", type=int, default=None, help="random candidates per step")
@@ -165,6 +254,10 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--scale", type=float, default=1.0, help="export resolution scale")
     v.add_argument("--opacity", type=float, default=None, help="override thread opacity")
     v.set_defaults(func=_viz)
+
+    d = sub.add_parser("demo", help="launch the interactive web demo (needs --extra demo)")
+    d.add_argument("--port", type=int, default=7860)
+    d.set_defaults(func=lambda a: __import__("stringart.demo", fromlist=["launch"]).launch(a.port))
 
     f = sub.add_parser("fetch-models", help="download the YuNet face and LBF landmark models")
     f.add_argument("--no-lbf", action="store_true", help="skip the 56 MB landmark model")

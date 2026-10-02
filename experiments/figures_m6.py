@@ -163,7 +163,8 @@ def fig_sweep(rows, param, xlabel, out: Path):
 
 
 def fig_robust(rows, out: Path):
-    fault = [r for r in rows if r["stretch"] in ("auto", "off") and r["transform"] != "none (clean)"]
+    fault = [r for r in rows
+             if r["stretch"] in ("auto", "off") and r["transform"] != "none (clean)"]
     clean = [r for r in rows if r["transform"] == "none (clean)"]
     transforms = sorted({r["transform"] for r in fault})
     fig, axes = new_fig(7, 3.4)

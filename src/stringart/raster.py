@@ -28,7 +28,7 @@ def _to_yx(steep, major, minor):
 
 
 def aa_line(p0, p1, shape) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Anti-aliased line from p0=(x, y) to p1. Returns (ys, xs, coverage) with coverage in (0, 1]."""
+    """Anti-aliased line from p0=(x, y) to p1. Returns (ys, xs, coverage), coverage in (0, 1]."""
     steep, major, minor = _major_minor(p0, p1)
     lo = np.floor(minor).astype(np.int64)
     frac = minor - lo

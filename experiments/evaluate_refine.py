@@ -89,7 +89,8 @@ def main() -> None:
         md.append(f"| {st} | " + " | ".join(cells) + " |")
     by = {(r["image"], r["stage"]): r for r in rows}
     ids = sorted({r["image"] for r in rows})
-    md += ["", "| vs D_greedy | Δ SSIM σ2 | wins | Δ face SSIM σ2 | wins |", "|---|---|---|---|---|"]
+    md += ["", "| vs D_greedy | Δ SSIM σ2 | wins | Δ face SSIM σ2 | wins |",
+           "|---|---|---|---|---|"]
     for st in stages[1:]:
         d = [by[(i, st)]["ssim_s2"] - by[(i, "D_greedy")]["ssim_s2"] for i in ids]
         f = [by[(i, st)]["ssim_roi_s2"] - by[(i, "D_greedy")]["ssim_roi_s2"] for i in ids

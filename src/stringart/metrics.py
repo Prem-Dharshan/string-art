@@ -1,4 +1,5 @@
-"""Quality metrics: PSNR and SSIM on the direct render and after Gaussian blur (viewing distance)."""
+"""Quality metrics: PSNR and SSIM on the direct render and after Gaussian blur (viewing
+distance)."""
 
 import cv2
 import numpy as np

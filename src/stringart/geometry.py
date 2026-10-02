@@ -11,7 +11,8 @@ def circle_pins(n: int, size: int) -> np.ndarray:
 
 
 def rect_pins(n: int, width: int, height: int) -> np.ndarray:
-    """`n` pins evenly spaced along the border of a `width`x`height` canvas, clockwise from top-left."""
+    """`n` pins evenly spaced along the border of a `width`x`height` canvas, clockwise from
+    the top-left corner."""
     w, h = width - 1, height - 1
     perim = 2 * (w + h)
     s = np.arange(n) * perim / n
