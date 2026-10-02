@@ -178,7 +178,7 @@ Models go in `models/` (gitignored): `face_detection_yunet_2023mar.onnx` and
 | # | Milestone | Done when |
 |---|---|---|
 | M0 | Env and project setup | ✅ uv project, Python 3.12 venv, OpenCV 5.0 contrib, numba verified |
-| M1 | Baseline reproduced, plus visualizer | LessWrong-style greedy produces a recognizable portrait; metrics and timing logged; `stringart viz` replays its sequence live and exports mp4/GIF (§2b) |
+| M1 | Baseline reproduced, plus visualizer | ✅ LessWrong-style greedy (all candidates scored per step via `reduceat`, ~7 s for 256 pins / 3k lines / 600 px); metrics logged; `stringart viz` live player, mp4/GIF export, snapshot grid. Observed: no stopping rule, so extra lines over-darken (motivates I2) |
 | M2 | Core solver (I1–I3) | Beats baseline on blurred SSIM at equal line count; < 5 s for 256 pins / 4k lines / 600 px |
 | M3 | Preprocessing and importance (I4, I5) | Works on a 20-image test set without per-image tuning; face regions measurably better |
 | M4 | Refinement (I6) | Measurable ΔE / SSIM gain for < 2× runtime |
