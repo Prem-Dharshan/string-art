@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Build the site (strict: fails on broken links)
+      - name: "Build the site (strict mode fails on broken links)"
         run: uv run --only-group docs mkdocs build --strict
       - uses: actions/upload-pages-artifact@v3
         with:
