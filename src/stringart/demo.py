@@ -8,6 +8,7 @@ Everything runs locally; nothing is uploaded anywhere.
 import json
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 import cv2
@@ -27,6 +28,7 @@ from .fabrication import color_instructions, instructions, thread_length_mm
 from .geometry import make_pins
 from .importance import auto_weights
 from .io import save_color_result, save_sequence
+from .kit import write_kit
 from .metrics import evaluate
 from .preprocess import PreprocessConfig, prepare
 from .render import render_sequence
@@ -143,6 +145,12 @@ def make_art(
     gif = viz.export(src, out / "build.gif", duration_s=10, scale=0.5)
     mp4 = viz.export(src, out / "build.mp4", duration_s=15)
     (out / "instructions.txt").write_text(sheet, encoding="utf-8")
+    # Everything needed at the workbench later, in one download.
+    kit_files = [out / "instructions.txt", out / "sequence.json", *write_kit(out, frame_mm)]
+    kit_zip = out / "build_kit.zip"
+    with zipfile.ZipFile(kit_zip, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in kit_files:
+            z.write(f, f.name)
     summary = {
         "lines": n_lines,
         "pins": int(n_pins),
@@ -165,7 +173,7 @@ def make_art(
         render,
         str(gif),
         str(mp4),
-        str(out / "instructions.txt"),
+        str(kit_zip),
         str(out / "sequence.json"),
         md,
     )
@@ -209,7 +217,9 @@ def build_ui():
                 anim = gr.Image(label="Build-up, thread by thread")
                 with gr.Row():
                     mp4 = gr.File(label="Animation (mp4)")
-                    sheet = gr.File(label="Build sheet (instructions.txt)")
+                    sheet = gr.File(
+                        label="Build kit (zip): winding list, 1:1 template, pins, shopping list"
+                    )
                     seq = gr.File(label="Pin sequence (sequence.json)")
 
         def run(

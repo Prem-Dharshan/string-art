@@ -185,6 +185,7 @@ Models go in `models/` (gitignored): `face_detection_yunet_2023mar.onnx` and
 | M5 | Colour (I7) | ✅ joint colour greedy with per-colour threads and spool-run limit; vs LessWrong-style dither baseline: ΔE2000 −3.8 and luminance SSIM +0.16 on 12/12 images; Lab vs RGB palette inconclusive. [M5 doc](milestones/M5-colour.md) |
 | M7 | Demo app | ✅ Gradio app: photo → string art, build-up animation, build sheet; defaults = 700 mm / 300 pins / 0.25 mm thread. [M7 doc](milestones/M7-demo.md) |
 | M8 | Hardening | ✅ physical calibration tool (`stringart calibrate`), gamma-aware exposure validated on a rule-chosen held-out set, automatic palette choice, ruff clean (WSL fallback). [M8 doc](milestones/M8-hardening.md) |
+| M9 | Build-ready | ✅ simulation-only for now; `stringart kit` (1:1 template as A4 tiles + SVG, pins.csv, shopping list), `stringart wind` assistant with saved progress, [BUILD_GUIDE](BUILD_GUIDE.md). [M9 doc](milestones/M9-build-ready.md) |
 | M6 | Evaluation and report | ✅ 30-image openly licensed dataset (`data/dataset.json`). Solver beats the baseline at equal lines on 29/30 images; full method raises face SSIM on 22/22 face images; auto stretch recovers synthetic exposure faults; pins/opacity sweeps; SSIM-vs-lines curves; fabrication `instructions.txt`. Details: [docs/milestones/M6-evaluation.md](milestones/M6-evaluation.md) |
 
 Order taken: M1 → M2 → M3 → M6 (minimum viable evaluation), then M4, M5, M7 (demo) and the report.

@@ -43,8 +43,9 @@ uv run stringart calibrate fit photo.jpg                     # prints the --thre
 
   A first version normalized by the 97th percentile of the frame and over-estimated opacity by
   about 0.014. Switching to the bare-board median removed the bias.
-- **Still open:** this is a tool, not a measurement. One real build on the 700 mm, 300-pin
-  frame is needed to actually close the loop.
+- **Still open:** this is a tool, not a measurement. The project is simulation-only for now;
+  the loop closes when the planned 700 mm, 300-pin piece is built (see
+  [BUILD_GUIDE](../BUILD_GUIDE.md) and [M9](M9-build-ready.md)).
 
 ## 2 and 4. Gamma-aware exposure + a held-out check (`experiments/evaluate_exposure.py`)
 - **Gamma.** When the exposure trigger fires, a gamma now follows the level stretch,

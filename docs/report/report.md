@@ -182,6 +182,11 @@ increases. Two sweeps are the default.
 - **Build sheet.** Every run writes `instructions.txt`: pins numbered clockwise from the top,
   a numbered winding list in blocks of 100 lines with running thread length (and per-spool
   lengths and tie-on pins for colour), plus `sequence.json`, a PNG/SVG render and metrics.
+- **Build kit and winding assistant.** `stringart kit` turns a run into a 1:1 pin template
+  (A4 tiles for a home printer, plus one SVG sheet), pin coordinates and a shopping list.
+  `stringart wind` steps through the winding one line at a time, with the next line
+  highlighted and progress saved. The project is simulation-only for now; these make it
+  ready for a later physical build (see `docs/BUILD_GUIDE.md`).
 - **Visualizer.** It replays any result thread by thread through the same renderer. The live
   player has pause, step and speed controls; it can export mp4 and GIF, and save snapshot
   grids (Figure 2). A test asserts that its final frame equals the final render pixel for
@@ -376,9 +381,9 @@ man +0.074): insert moves place additional lines anywhere along the path.
 - **Palette trade-off.** The reachable-gamut palette gets colour right but gives up a little
   light/dark structure (luminance SSIM −0.014 to −0.026). A quick low-resolution preview turned
   out to be a poor judge of which palette wins (6/12).
-- **No physical validation yet.** All results are simulated. The calibration tool is
-  validated on synthetic photos only; one real test build on the team's frame is still
-  needed.
+- **Simulation only.** All results are simulated renders; no physical piece has been built
+  yet. Calibration, the build kit and the winding assistant are ready for a later build, but
+  are validated on synthetic data only.
 
 ## 8. Conclusion and future work
 A physically grounded objective, OpenCV face-aware preprocessing and automatic importance
@@ -388,7 +393,7 @@ greedy, about 8 s with refinement), and **feasible** (one continuous thread per 
 practical number of spool switches, and a numbered build sheet with thread lengths).
 
 Next steps:
-1. Wind the calibration pattern on the 700 mm, 300-pin frame and fit the real thread opacity.
+1. When the tools are available: build the planned 700 mm, 300-pin piece with the build kit, calibrating the thread first (`docs/BUILD_GUIDE.md`).
 2. A perceptual (blur- or SSIM-aware) stopping rule.
 3. A palette that balances colour accuracy and structure, e.g. scored by a full-resolution
    solve.
@@ -430,7 +435,8 @@ uv run python experiments/evaluate_exposure.py  # §6.3, held-out exposure check
 uv run python experiments/evaluate_palette_heldout.py
 uv run python experiments/figures_m6.py --docs && uv run python experiments/figures_m5.py --docs
 uv run python experiments/figures_report.py     # Figures 1–2
-uv run pytest                                   # 79 tests
+uv run pytest                                   # 86 tests
+uv run stringart kit <run> --frame-mm 700      # build kit for a later physical piece
 uv run --extra demo stringart demo              # the demo
 ```
 The report's numbers were produced in the Docker image (`docker compose run -d --name sa-exp

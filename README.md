@@ -25,6 +25,10 @@ uv run stringart run photo.jpg --solver baseline --legacy-prep  # the LessWrong-
 uv run stringart run photo.jpg --colors 4 --pins 300 --frame-mm 700  # colour, 4 thread spools
 uv run stringart run photo.jpg --palette black,tan,brown,red         # choose the threads yourself
 
+# When you build it for real (see docs/BUILD_GUIDE.md):
+uv run stringart kit outputs/camera_greedy --frame-mm 700   # 1:1 template (A4 tiles), pins.csv, shopping list
+uv run stringart wind outputs/camera_greedy                 # winding assistant, saves progress
+
 # Calibrate to your real thread: wind a ~250-line test pattern, photograph it, fit
 uv run stringart calibrate sheet --pins 300 --frame-mm 700
 uv run stringart calibrate fit photo.jpg       # prints the --thread-mm to use

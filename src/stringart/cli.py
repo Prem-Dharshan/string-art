@@ -395,6 +395,19 @@ def build_parser() -> argparse.ArgumentParser:
         func=lambda a: __import__("stringart.demo", fromlist=["launch"]).launch(a.port, a.host)
     )
 
+    k = sub.add_parser("kit", help="build kit: 1:1 frame template, pin coordinates, shopping list")
+    k.add_argument("source", help="run directory (with sequence.json)")
+    k.add_argument("--frame-mm", type=float, required=True, help="real frame diameter / side")
+    k.add_argument("--spool-m", type=float, default=500, help="metres of thread per spool")
+    k.set_defaults(func=_kit)
+
+    w = sub.add_parser("wind", help="winding assistant: step through the lines at the frame")
+    w.add_argument("source", help="run directory (with sequence.json)")
+    w.add_argument("--reset", action="store_true", help="start again from line 1")
+    w.set_defaults(
+        func=lambda a: __import__("stringart.wind", fromlist=["run"]).run(a.source, a.reset)
+    )
+
     cal = sub.add_parser("calibrate", help="measure the real thread's opacity from a photo")
     calsub = cal.add_subparsers(dest="calcmd", required=True)
     cs = calsub.add_parser("sheet", help="write a short calibration pattern to wind")
@@ -413,6 +426,14 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--no-lbf", action="store_true", help="skip the 56 MB landmark model")
     f.set_defaults(func=_fetch_models)
     return p
+
+
+def _kit(args) -> None:
+    from .kit import write_kit
+
+    for path in write_kit(Path(args.source), args.frame_mm, args.spool_m):
+        print(f"wrote {path}")
+    print((Path(args.source) / "shopping_list.txt").read_text(encoding="utf-8"))
 
 
 def _calibrate_sheet(args) -> None:
