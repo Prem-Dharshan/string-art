@@ -18,7 +18,7 @@ grounded in the project references.
     canvas against a coarse target, which models viewing distance.
 - Created a `uv` package project (`src/` layout), with Python **3.12** pinned in
   `.python-version`.
-- Wrote `docs/PLAN.md`: improvements I1–I7, architecture, milestones, evaluation protocol,
+- Wrote the project plan: improvements I1–I7, architecture, milestones, evaluation protocol,
   risks, and the visualizer spec (§2b).
 
 ## Environment

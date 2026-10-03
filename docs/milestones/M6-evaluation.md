@@ -9,7 +9,7 @@ buildable output.
 
 ## Dataset (`data/dataset.json`, `experiments/fetch_dataset.py`)
 30 images: 27 from Wikimedia Commons (public domain, CC0, CC BY, CC BY-SA) plus 3 synthetic
-variants. Attribution for every image is in [`data/ATTRIBUTION.md`](../../data/ATTRIBUTION.md).
+variants. Attribution for every image is in [Credits](../credits.md).
 The images themselves are downloaded into the gitignored `data/raw/`.
 
 | category | n | content |
@@ -69,7 +69,7 @@ Paired, per image:
 ![gallery](figures/m6_gallery.png)
 
 *Gallery rows: f07, f16, f13, f05, a04, o01. Photos by the authors listed in
-[data/ATTRIBUTION.md](../../data/ATTRIBUTION.md) (CC BY-SA 3.0 de / 4.0, CC0, CC BY 4.0); the
+[Credits](../credits.md) (CC BY-SA 3.0 de / 4.0, CC0, CC BY 4.0); the
 figure is a derivative work shared under the same licences.*
 
 ### Robustness to exposure faults (vs. the clean photo)

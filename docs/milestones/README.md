@@ -1,8 +1,7 @@
 # Milestone log
 
 One document per milestone: goal, what was built, design decisions, results, findings
-(including what did *not* work) and how to reproduce. The overall roadmap is in
-[../PLAN.md](../PLAN.md).
+(including what did *not* work) and how to reproduce.
 
 | Milestone | Status | Doc | Commit |
 |---|---|---|---|
@@ -16,7 +15,7 @@ One document per milestone: goal, what was built, design decisions, results, fin
 | M7 Interactive demo app | done | [M7-demo.md](M7-demo.md) | see git log |
 | M8 Hardening: calibration, exposure, palette, held-out, lint | done | [M8-hardening.md](M8-hardening.md) | see git log |
 | M9 Build-ready tooling: kit, winding assistant, build guide | done | [M9-build-ready.md](M9-build-ready.md) | see git log |
-| Report | done | [../report/report.md](../report/report.md) | see git log |
+| Report | done | [Project report](../report/report.md) | see git log |
 
 **Conventions used in every results table**
 - Images are rendered with the same thread model the solver uses (`render.Canvas`).

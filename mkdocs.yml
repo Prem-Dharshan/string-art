@@ -1,0 +1,62 @@
+site_name: Computational String Art
+site_description: OpenCV-based computational string art - photo to a buildable thread sequence
+site_url: https://prem-dharshan.github.io/string-art/
+docs_dir: docs
+site_dir: site
+
+# The project plan stays in the repository but is not published.
+exclude_docs: |
+  PLAN.md
+  references.md
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+  - admonition
+  - attr_list
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - User guide: guide.md
+  - Report: report/report.md
+  - Build guide: BUILD_GUIDE.md
+  - Milestones:
+      - Overview: milestones/README.md
+      - M0 Setup: milestones/M0-setup.md
+      - M1 Baseline and visualizer: milestones/M1-baseline-visualizer.md
+      - M2 Greedy solver: milestones/M2-greedy-solver.md
+      - M3 Preprocessing and importance: milestones/M3-preprocessing-importance.md
+      - M4 Refinement: milestones/M4-refinement.md
+      - M5 Colour: milestones/M5-colour.md
+      - M6 Evaluation: milestones/M6-evaluation.md
+      - M7 Demo app: milestones/M7-demo.md
+      - M8 Hardening: milestones/M8-hardening.md
+      - M9 Build-ready: milestones/M9-build-ready.md
+  - Project abstract: abstract.md
+  - Credits: credits.md

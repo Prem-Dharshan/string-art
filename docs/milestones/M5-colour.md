@@ -50,7 +50,7 @@ viewing blur. ΔE2000: lower is better. Luminance SSIM: higher is better.
 
 ![colour gallery](figures/m5_color_gallery.png)
 
-*Photos: see [data/ATTRIBUTION.md](../../data/ATTRIBUTION.md); derivative figure under the
+*Photos: see [Credits](../credits.md); derivative figure under the
 same licences.*
 
 ## Findings

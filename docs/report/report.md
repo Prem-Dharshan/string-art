@@ -231,8 +231,8 @@ at viewing blur σ = 2.*
 
 ## 5. Experimental setup
 **Dataset.** 30 images:
-- 27 from Wikimedia Commons (public domain, CC0, CC BY, CC BY-SA; attribution in
-  `data/ATTRIBUTION.md`).
+- 27 from Wikimedia Commons (public domain, CC0, CC BY, CC BY-SA; attribution on the
+  [Credits](../credits.md) page).
 - 3 synthetic exposure faults of one portrait (underexposed, low contrast, washed out), which
   have a known clean original.
 
@@ -441,5 +441,5 @@ uv run --extra demo stringart demo              # the demo
 ```
 The report's numbers were produced in the Docker image (`docker compose run -d --name sa-exp
 stringart bash experiments/run_all.sh`); see the README.
-Image credits: see `data/ATTRIBUTION.md`. Figures that contain photographs are derivative
+Image credits: see [Credits](../credits.md). Figures that contain photographs are derivative
 works shared under the photos' licences (CC BY / CC BY-SA / CC0 / public domain).
