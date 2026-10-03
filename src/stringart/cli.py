@@ -282,19 +282,32 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     r = sub.add_parser("run", help="compute a pin sequence for an image")
-    r.add_argument("image", help="image path, or sample:astronaut / sample:camera / ...")
-    r.add_argument("--solver", choices=["greedy", "baseline"], default="greedy")
+    r.add_argument(
+        "image",
+        help="image path, or sample:<name> (photos in data/samples, or astronaut, camera, "
+        "coffee, chelsea)",
+    )
+    r.add_argument(
+        "--solver",
+        choices=["greedy", "baseline"],
+        default="greedy",
+        help="greedy = this project's solver; baseline = prior LessWrong/Vrellis method",
+    )
     r.add_argument("--out", help="output directory (default outputs/<image>_<solver>)")
     r.add_argument("--size", type=int, default=600, help="canvas size in px")
-    r.add_argument("--frame", choices=["circle", "rect"], default="circle")
-    r.add_argument("--pins", type=int, default=256)
+    r.add_argument(
+        "--frame", choices=["circle", "rect"], default="circle", help="pins on a circle or a square"
+    )
+    r.add_argument("--pins", type=int, default=256, help="number of pins/nails around the frame")
     r.add_argument(
         "--lines",
         type=int,
         default=None,
         help="baseline: line count (default 3000); greedy: cap (default 8000)",
     )
-    r.add_argument("--min-gap", type=int, default=10)
+    r.add_argument(
+        "--min-gap", type=int, default=10, help="skip chords between pins closer than this"
+    )
     r.add_argument(
         "--opacity",
         type=float,
@@ -308,7 +321,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="frame diameter/side in mm (thread length in instructions.txt)",
     )
     g = r.add_argument_group("greedy solver")
-    g.add_argument("--objective", choices=["pixel", "blur"], default="pixel")
+    g.add_argument(
+        "--objective",
+        choices=["pixel", "blur"],
+        default="pixel",
+        help="error to minimize: pixel (fast) or blur (viewing distance, ~3x slower)",
+    )
     g.add_argument("--blur-sigma", type=float, default=1.5, help="viewing blur for 'blur'")
     g.add_argument("--max-repeats", type=int, default=2, help="max uses of one chord")
     g.add_argument(
@@ -322,7 +340,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--colors",
         type=int,
         default=1,
-        help="number of thread colours (>1 = colour mode, palette by Lab k-means)",
+        help="number of thread colours: 1 = black only, >1 = colour mode",
     )
     c.add_argument("--palette", help="explicit thread colours, e.g. black,red,tan,blue")
     c.add_argument(
@@ -337,9 +355,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--min-run", type=int, default=100, help="colour mode: lines before switching spool"
     )
     b = r.add_argument_group("baseline solver")
-    b.add_argument("--line-strength", type=float, default=0.1)
+    b.add_argument("--line-strength", type=float, default=0.1, help="darkness removed per line")
     b.add_argument("--candidates", type=int, default=None, help="random candidates per step")
-    b.add_argument("--darkness-penalty", type=float, default=0.0)
+    b.add_argument(
+        "--darkness-penalty", type=float, default=0.0, help="penalty D for over-dark pixels"
+    )
     pp = r.add_argument_group("preprocessing / importance")
     pp.add_argument(
         "--crop",
@@ -370,9 +390,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="M1/M2 chain: centre crop, CLAHE, Gaussian (--blur)",
     )
     pp.add_argument("--blur", type=float, default=1.0, help="Gaussian sigma for --legacy-prep")
-    r.add_argument("--seed", type=int, default=0)
+    r.add_argument("--seed", type=int, default=0, help="random seed (baseline --candidates)")
     r.add_argument("--viz", action="store_true", help="open the visualizer when done")
-    r.add_argument("--quiet", action="store_true")
+    r.add_argument("--quiet", action="store_true", help="less console output")
     r.set_defaults(func=_run)
 
     v = sub.add_parser("viz", help="replay a sequence thread by thread")
@@ -382,14 +402,14 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--grid", help="snapshot grid at line counts, e.g. 100,500,1000,3000")
     v.add_argument("--show", action="store_true", help="also open the live player")
     v.add_argument("--step", type=int, default=None, help="lines per frame")
-    v.add_argument("--fps", type=int, default=30)
+    v.add_argument("--fps", type=int, default=30, help="export frame rate (GIF capped at 10)")
     v.add_argument("--duration", type=float, default=15.0, help="export length in seconds")
     v.add_argument("--scale", type=float, default=1.0, help="export resolution scale")
     v.add_argument("--opacity", type=float, default=None, help="override thread opacity")
     v.set_defaults(func=_viz)
 
     d = sub.add_parser("demo", help="launch the interactive web demo (needs --extra demo)")
-    d.add_argument("--port", type=int, default=7860)
+    d.add_argument("--port", type=int, default=7860, help="port of the local web page")
     d.add_argument("--host", default="127.0.0.1", help="0.0.0.0 inside a container")
     d.set_defaults(
         func=lambda a: __import__("stringart.demo", fromlist=["launch"]).launch(a.port, a.host)
@@ -411,13 +431,13 @@ def build_parser() -> argparse.ArgumentParser:
     cal = sub.add_parser("calibrate", help="measure the real thread's opacity from a photo")
     calsub = cal.add_subparsers(dest="calcmd", required=True)
     cs = calsub.add_parser("sheet", help="write a short calibration pattern to wind")
-    cs.add_argument("--pins", type=int, default=300)
-    cs.add_argument("--frame-mm", type=float, default=700)
-    cs.add_argument("--lines", type=int, default=250)
-    cs.add_argument("--out", default="outputs/calibration")
+    cs.add_argument("--pins", type=int, default=300, help="pins on your frame")
+    cs.add_argument("--frame-mm", type=float, default=700, help="frame diameter in mm")
+    cs.add_argument("--lines", type=int, default=250, help="lines in the test pattern")
+    cs.add_argument("--out", default="outputs/calibration", help="output folder")
     cs.set_defaults(func=_calibrate_sheet)
     cf = calsub.add_parser("fit", help="fit thread opacity from a photo of the wound pattern")
-    cf.add_argument("photo")
+    cf.add_argument("photo", help="front photo of the wound pattern, pin 0 at the top")
     cf.add_argument("--sheet", default="outputs/calibration", help="folder from `sheet`")
     cf.add_argument("--circle", help="frame circle in the photo as cx,cy,r (if auto fails)")
     cf.set_defaults(func=_calibrate_fit)
@@ -425,6 +445,8 @@ def build_parser() -> argparse.ArgumentParser:
     f = sub.add_parser("fetch-models", help="download the YuNet face and LBF landmark models")
     f.add_argument("--no-lbf", action="store_true", help="skip the 56 MB landmark model")
     f.set_defaults(func=_fetch_models)
+    for parser in [*sub.choices.values(), *calsub.choices.values()]:
+        parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
     return p
 
 

@@ -435,7 +435,7 @@ uv run python experiments/evaluate_exposure.py  # §6.3, held-out exposure check
 uv run python experiments/evaluate_palette_heldout.py
 uv run python experiments/figures_m6.py --docs && uv run python experiments/figures_m5.py --docs
 uv run python experiments/figures_report.py     # Figures 1–2
-uv run pytest                                   # 86 tests
+uv run pytest                                   # 87 tests
 uv run stringart kit <run> --frame-mm 700      # build kit for a later physical piece
 uv run --extra demo stringart demo              # the demo
 ```
