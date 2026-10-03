@@ -19,14 +19,27 @@ from .face import Face, detect_faces
 SAMPLES = ("astronaut", "camera", "coffee", "chelsea")
 
 
+SAMPLE_DIR = Path(__file__).resolve().parents[2] / "data" / "samples"
+
+
+def sample_names() -> list[str]:
+    """`sample:<name>` choices: the repo's data/samples photos, then scikit-image's."""
+    local = sorted(p.stem for p in SAMPLE_DIR.glob("*.jpg")) if SAMPLE_DIR.is_dir() else []
+    return local + list(SAMPLES)
+
+
 def load_image(src: str) -> np.ndarray:
-    """Load a BGR uint8 image from a path, or `sample:<name>` from scikit-image's test data."""
+    """Load a BGR uint8 image from a path, or `sample:<name>`: a photo in data/samples
+    (e.g. sample:boy_yellow_shirt) or one of scikit-image's test images."""
     if src.startswith("sample:"):
         from skimage import data
 
         name = src.split(":", 1)[1]
+        local = SAMPLE_DIR / f"{name}.jpg"
+        if local.is_file():
+            return load_image(str(local))
         if name not in SAMPLES:
-            raise ValueError(f"unknown sample {name!r}; choose from {SAMPLES}")
+            raise ValueError(f"unknown sample {name!r}; choose from {sample_names()}")
         img = getattr(data, name)()
         if img.ndim == 2:
             return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)

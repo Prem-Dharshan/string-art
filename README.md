@@ -19,7 +19,7 @@ uv run stringart fetch-models
 # Solve and write outputs/<image>_greedy/
 # (face-centred crop, auto importance map, line count chosen automatically)
 uv run stringart run path/to/photo.jpg --pins 256
-uv run stringart run sample:astronaut         # scikit-image test images: astronaut, camera, coffee, chelsea
+uv run stringart run sample:boy_yellow_shirt  # photos in data/samples/ (see its ATTRIBUTION.md), or astronaut, camera, coffee, chelsea
 uv run stringart run photo.jpg --thread-mm 0.25 --frame-mm 500   # thread opacity from real sizes
 uv run stringart run photo.jpg --solver baseline --legacy-prep  # the LessWrong-style baseline
 uv run stringart run photo.jpg --colors 4 --pins 300 --frame-mm 700  # colour, 4 thread spools

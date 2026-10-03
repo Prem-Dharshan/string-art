@@ -86,3 +86,12 @@ def test_metrics_identical_images():
     a = np.random.default_rng(1).random((64, 64))
     m = evaluate(a, a)
     assert m["ssim_s0"] == pytest.approx(1.0) and m["psnr_s2"] == float("inf")
+
+
+def test_repo_samples_load_by_name():
+    from stringart.preprocess import sample_names
+
+    names = sample_names()
+    assert "boy_yellow_shirt" in names and "astronaut" in names
+    img = load_image("sample:boy_yellow_shirt")
+    assert img.ndim == 3 and max(img.shape[:2]) == 1000
