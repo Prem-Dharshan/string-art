@@ -179,9 +179,13 @@ def make_art(
     )
 
 
-def build_ui():
+def build_ui(samples_dir: Path | None = None, footer: str = ""):
+    """The Gradio app. `samples_dir` (default: the repo's data/samples) feeds the examples."""
     import gradio as gr
 
+    from .preprocess import SAMPLE_DIR
+
+    samples = sorted(Path(samples_dir or SAMPLE_DIR).glob("*.jpg"))
     with gr.Blocks(title="String art") as ui:
         gr.Markdown(
             "# Computational string art\nUpload a photo. The pipeline crops to the "
@@ -209,6 +213,10 @@ def build_ui():
                         ["auto", "on", "off"], value="auto", label="Importance weights"
                     )
                 go = gr.Button("Make string art", variant="primary")
+                if samples:
+                    gr.Examples(
+                        [[str(p)] for p in samples], inputs=[photo], label="Or try a sample photo"
+                    )
             with gr.Column(scale=2):
                 summary = gr.Markdown()
                 with gr.Row():
@@ -253,6 +261,8 @@ def build_ui():
             [photo, n_pins, frame_mm, thread_mm, n_colors, refine_sweeps, crop, importance],
             [target, render, anim, mp4, sheet, seq, summary],
         )
+        if footer:
+            gr.Markdown(footer)
     return ui
 
 
