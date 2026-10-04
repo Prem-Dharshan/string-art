@@ -24,6 +24,9 @@ stringart = "stringart.cli:main"
 demo = [
     "gradio>=6.29.0",
 ]
+web = [
+    "streamlit>=1.65.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.2,<0.12.0"]

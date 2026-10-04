@@ -78,14 +78,16 @@ Sample photos are openly licensed images from Wikimedia Commons; see `samples/AT
 """
 
 
-def requirements() -> tuple[str, str]:
+def requirements(extra: str = "demo") -> tuple[str, str]:
+    """Pinned requirements for a hosted app from uv.lock: the core deps plus `extra`, with
+    OpenCV swapped for its headless build. Returns (text, gradio version or "")."""
     out = subprocess.run(
         [
             "uv",
             "export",
             "--no-hashes",
             "--extra",
-            "demo",
+            extra,
             "--no-dev",
             "--no-emit-project",
             "--no-header",

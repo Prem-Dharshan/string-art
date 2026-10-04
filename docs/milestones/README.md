@@ -15,6 +15,7 @@ One document per milestone: goal, what was built, design decisions, results, fin
 | M7 Interactive demo app | done | [M7-demo.md](M7-demo.md) | see git log |
 | M8 Hardening: calibration, exposure, palette, held-out, lint | done | [M8-hardening.md](M8-hardening.md) | see git log |
 | M9 Build-ready tooling: kit, winding assistant, build guide | done | [M9-build-ready.md](M9-build-ready.md) | see git log |
+| M10 Docs site and online app | done | [M10-publishing.md](M10-publishing.md) | see git log |
 | Report | done | [Project report](../report/report.md) | see git log |
 
 **Conventions used in every results table**

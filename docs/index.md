@@ -40,4 +40,7 @@ uv run stringart run sample:woman_smiling      # → outputs/woman_smiling_greed
 uv run --extra demo stringart demo             # web demo at http://127.0.0.1:7860
 ```
 
+Or use the browser version: the Streamlit app, described in
+[the online version](guide.md#the-online-version-streamlit).
+
 *20XW97 project · Ajay H (22PW01) · Prem Dharshan D (22PW29)*

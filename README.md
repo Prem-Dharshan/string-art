@@ -7,7 +7,8 @@ render, a thread-by-thread animation and a build kit for a real piece.
 
 - **Documentation:** https://prem-dharshan.github.io/string-art/ (user guide, report,
   build guide, milestone log). The sources are in [`docs/`](docs/).
-- **Try it online:** the Gradio app on Hugging Face Spaces (link on the docs home page).
+- **Try it online:** the Streamlit app (`app/streamlit_app.py`, on Streamlit Community Cloud);
+  see [the online version](https://prem-dharshan.github.io/string-art/guide/#the-online-version-streamlit).
 
 ## Quick start
 
@@ -26,7 +27,7 @@ Every command and argument is explained in the
 ## Development
 
 ```sh
-uv run pytest -q                              # 87 tests
+uv run --extra web --extra demo pytest -q    # 88 tests
 uv run python tools/ruff.py check             # lint
 uv run --group docs mkdocs serve              # docs site locally at http://127.0.0.1:8000
 ```

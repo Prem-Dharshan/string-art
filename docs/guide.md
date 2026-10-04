@@ -97,6 +97,30 @@ You get back:
 Other options: `stringart demo --port 8000` uses another port. `--host 0.0.0.0` makes it
 reachable from other devices on your network; the Docker setup uses this.
 
+### The online version (Streamlit)
+
+The same pipeline also runs as a Streamlit app, `app/streamlit_app.py`, which is what we
+host online. It has the same controls in the sidebar, plus a picker for the sample photos.
+To run it locally:
+
+```sh
+uv run --extra web streamlit run app/streamlit_app.py    # opens http://localhost:8501
+```
+
+The hosted copy runs on a free shared CPU, so a photo takes about 30–90 s there. Photos
+uploaded to it are processed on Streamlit's servers.
+
+**Deploying it (one-time, on [Streamlit Community Cloud](https://share.streamlit.io)):**
+sign in with GitHub, click **Create app → Deploy a public app from GitHub**, and enter
+repository `Prem-Dharshan/string-art`, branch `master`, main file `app/streamlit_app.py`. Under
+**Advanced settings**, pick Python **3.12**. Streamlit installs `app/requirements.txt` (the
+locked dependencies, with headless OpenCV) and redeploys on every push to `master`. The repo
+is private, so the GitHub account that deploys it needs access to it.
+
+`app/requirements.txt` is generated from `uv.lock`. After changing dependencies, run
+`uv run python tools/streamlit_requirements.py` again. (`tools/deploy_space.py` packages the
+Gradio demo for Hugging Face Spaces instead, but free Gradio Spaces need a PRO account.)
+
 ---
 
 ## 4. Sample images
