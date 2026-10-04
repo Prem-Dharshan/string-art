@@ -99,8 +99,8 @@ reachable from other devices on your network; the Docker setup uses this.
 
 ### The online version (Streamlit)
 
-The same pipeline also runs as a Streamlit app, `app/streamlit_app.py`, which is what we
-host online. It has the same controls in the sidebar, plus a picker for the sample photos.
+The same pipeline also runs as a Streamlit app, `app/streamlit_app.py`, hosted at
+**https://cv-string-art.streamlit.app/**. It has the same controls in the sidebar, plus a picker for the sample photos.
 To run it locally:
 
 ```sh

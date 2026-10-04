@@ -1,7 +1,7 @@
 # M10: Docs site and online app
 
-**Status:** done (the app is pending its one-time deploy click) · **Commit:** see the
-milestone log
+**Status:** done · **Commit:** see the milestone log · **App:**
+https://cv-string-art.streamlit.app/
 
 ## Goal
 Publish the documentation as a website, and put the demo online so the reviewers can try it

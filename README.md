@@ -7,8 +7,8 @@ render, a thread-by-thread animation and a build kit for a real piece.
 
 - **Documentation:** https://prem-dharshan.github.io/string-art/ (user guide, report,
   build guide, milestone log). The sources are in [`docs/`](docs/).
-- **Try it online:** the Streamlit app (`app/streamlit_app.py`, on Streamlit Community Cloud);
-  see [the online version](https://prem-dharshan.github.io/string-art/guide/#the-online-version-streamlit).
+- **Try it online:** https://cv-string-art.streamlit.app/ (the Streamlit app,
+  [`app/streamlit_app.py`](app/streamlit_app.py)).
 
 ## Quick start
 
